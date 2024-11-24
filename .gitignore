@@ -4,7 +4,6 @@
 .cache/**
 history.txt
 
-# Ignore Node and NPM files. Added by the clarinet-sdk migration.
 logs
 *.log
 npm-debug.log*

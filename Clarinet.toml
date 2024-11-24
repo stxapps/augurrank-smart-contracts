@@ -1,14 +1,19 @@
 [project]
-name = 'blank-project'
-description = 'Create a project from scratch: Start from a blank scaffold for your next Clarity contract'
+name = 'augurrank-smart-contracts'
+description = ''
 authors = []
-telemetry = true
+telemetry = false
 cache_dir = './.cache'
 requirements = []
-[contracts.augurrank-btc-price]
-path = 'contracts/augurrank-btc-price.clar'
-clarity_version = 2
-epoch = 2.5
+[contracts.amm-pool-v2-01]
+path = 'contracts/amm-pool-v2-01.clar'
+clarity_version = 3
+epoch = 3.0
+
+[contracts.augurrank-btc]
+path = 'contracts/augurrank-btc.clar'
+clarity_version = 3
+epoch = 3.0
 [repl.analysis]
 passes = ['check_checker']
 

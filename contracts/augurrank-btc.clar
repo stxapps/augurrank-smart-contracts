@@ -1,4 +1,4 @@
-;; title: augurrank-btc-price
+;; title: augurrank-btc
 ;; version:
 ;; summary:
 ;; description:
@@ -6,7 +6,9 @@
 (define-constant lead-time u100)
 (define-constant pred-fee u100000)
 (define-constant augurrank-addr 'ST1J4G6RR643BCG8G8SR6M2D9Z9KXT2NJDRK3FBTK)
-(define-constant amm-contract 'xxx.amm-v2-0-1)
+(define-constant amm-contract 'SP102V8P0F7JX67ARQ77WEA3D3CFB5XW39REDT0AM.amm-pool-v2-01)
+(define-constant token-btc 'SP102V8P0F7JX67ARQ77WEA3D3CFB5XW39REDT0AM.token-btc)
+(define-constant token-usd 'SP102V8P0F7JX67ARQ77WEA3D3CFB5XW39REDT0AM.token-usd)
 
 (define-constant err-invalid-args (err u100))
 (define-constant err-in-anticipation (err u101))
@@ -34,11 +36,11 @@
         (asserts! (or (is-eq value "up") (is-eq value "down")) err-invalid-args)
         (asserts! (< last-height (- burn-block-height lead-time)) err-in-anticipation)
 
-        (map-set last-heights contract-caller burn-block-height)
+        (map-set last-heights contract-caller block-height)
         (map-set last-ids contract-caller id)
         (map-set preds
-            { addr: contract-caller, id: id}
-            { height: burn-block-height, value: value }
+            { addr: contract-caller, id: id }
+            { height: block-height, value: value }
         )
 
         (ok (stx-transfer? pred-fee contract-caller augurrank-addr))
@@ -54,56 +56,48 @@
             (value (get value pred))
         )
 
-        (asserts! (< target-height burn-block-height) err-premature-verify)
+        (asserts! (< target-height block-height) err-premature-verify)
 
         (let
             (
-                (anchor-btc-price (try!
-                    (contract-call? .btc-price get-price anchor-height)
-                ))
-                (target-btc-price (try!
-                    (contract-call? .btc-price get-price target-height)
-                ))
+                (anchor-price (get-price anchor-height))
+                (target-price (get-price target-height))
                 (up-and-more
                     (and (is-eq value "up") (> target-btc-price anchor-btc-price))
                 )
                 (down-and-less
                     (and (is-eq value "down") (< target-btc-price anchor-btc-price))
                 )
+                (result
+                    {
+                        anchor-price: anchor-price,
+                        target-price: target-price,
+                        correct: (or up-and-more down-and-less)
+                    }
+                )
             )
-            (map-set results
-                { addr: addr, id: id } { correct: (or up-and-more down-and-less) }
-            )
-            (ok true)
+            (map-set results { addr: addr, id: id } result)
+            (ok result)
         )
     )
-)
-
-(define-public
-    (verify-bulk (anchor-height uint) (keys (list 100 { addr: principal, id: uint })))
-    (let
-        (
-            (target-height (+ anchor-height lead-time))
-        )
-
-        (asserts! (< target-height burn-block-height) err-premature-verify)
-
-        ;; call a contract to get btc price at block anchor height
-        ;; call a contract to get btc price at block target height
-        ;; map 
-
-        (ok true)
-    )
-)
-
-(define-read-only (get-pred (addr principal) (id uint))
-    (map-get? preds { addr: addr, id: id })
-)
-
-(define-read-only (get-result (addr principal) (id uint))
-    (map-get? results { addr: addr, id: id })
 )
 
 (define-private (get-price (height uint))
-    (at-block)
+    (let
+        (
+            (id (unwrap! (get-stacks-block-info? id-header-hash height) err-invalid-args))
+        )
+        (at-block id
+            (let
+                (
+                    (price (try!
+                        (contract-call?
+                            .amm-pool-v2-01 get-price token-x token-y 0
+                        )
+                    ))
+                )
+                (ok price)
+            )
+        )
+    )
 )
