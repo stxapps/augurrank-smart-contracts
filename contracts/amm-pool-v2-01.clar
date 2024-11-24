@@ -29,5 +29,5 @@
 ;;
 
 (define-read-only (get-price (token-x principal) (token-y principal) (factor uint))
-(ok 0)
+    (ok u0)
 )
