@@ -14,6 +14,11 @@ epoch = 3.0
 path = 'contracts/augurrank-btc.clar'
 clarity_version = 3
 epoch = 3.0
+
+[contracts.playground]
+path = 'contracts/playground.clar'
+clarity_version = 3
+epoch = 3.0
 [repl.analysis]
 passes = ['check_checker']
 
