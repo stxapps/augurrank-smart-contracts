@@ -18,7 +18,7 @@ plan:
         - contract-publish:
             contract-name: augurrank-btc
             expected-sender: ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM
-            cost: 38610
+            cost: 32420
             path: contracts/augurrank-btc.clar
             anchor-block-only: true
             clarity-version: 3

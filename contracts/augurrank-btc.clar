@@ -3,7 +3,7 @@
 ;; summary:
 ;; description:
 
-(define-constant lead-height u100)
+(define-constant lead-height u2048)
 (define-constant pred-fee u100000)
 
 (define-constant err-invalid-args (err u100))
