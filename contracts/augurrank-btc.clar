@@ -3,7 +3,7 @@
 ;; summary:
 ;; description:
 
-(define-constant lead-height u2048)
+(define-constant lead-burn-height u100)
 (define-constant pred-fee u100000)
 
 (define-constant err-invalid-args (err u100))
@@ -16,7 +16,7 @@
 (define-map last-ids principal uint)
 (define-map preds
     { addr: principal, id: uint }
-    { height: uint, value: (string-ascii 4) }
+    { height: uint, burn-height: uint, value: (string-ascii 4) }
 )
 
 (define-public (predict (value (string-ascii 4)))
@@ -26,17 +26,17 @@
         (let
             (
                 (last-id (default-to u0 (map-get? last-ids contract-caller)))
-                (last-pred (default-to { height: u0, value: "" } (map-get? preds { addr: contract-caller, id: last-id })))
+                (last-pred (default-to { height: u0, burn-height: u0, value: "" } (map-get? preds { addr: contract-caller, id: last-id })))
                 (id (+ last-id u1))
-                (last-height (get height last-pred))
+                (last-burn-height (get burn-height last-pred))
             )
 
-            (asserts! (< last-height (- stacks-block-height lead-height)) err-in-anticipation)
+            (asserts! (< last-burn-height (- burn-block-height lead-burn-height)) err-in-anticipation)
 
             (map-set last-ids contract-caller id)
             (map-set preds
                 { addr: contract-caller, id: id }
-                { height: stacks-block-height, value: value }
+                { height: stacks-block-height, burn-height: burn-block-height, value: value }
             )
 
             (stx-transfer? pred-fee contract-caller contract-deployer)
@@ -44,40 +44,44 @@
     )
 )
 
-(define-read-only (verify (addr principal) (id uint))
-    (let
-        (
-            (pred (unwrap! (map-get? preds { addr: addr, id: id }) err-invalid-args))
-            (anchor-height (get height pred))
-            (target-height (+ anchor-height lead-height))
-        )
-        (asserts! (< target-height stacks-block-height) err-premature-verify)
-
+(define-public (verify (addr principal) (id uint) (target-height uint))
+    (begin
+        (asserts! (is-eq contract-deployer contract-caller) err-invalid-args)
         (let
             (
-                (anchor-price (try! (get-price anchor-height)))
-                (target-price (try! (get-price target-height)))
+                (pred (unwrap! (map-get? preds { addr: addr, id: id }) err-invalid-args))
+                (anchor-height (get height pred))
+                (anchor-burn-height (get burn-height pred))
                 (value (get value pred))
-                (up-and-more
-                    (and (is-eq value "up") (> target-price anchor-price))
-                )
-                (down-and-less
-                    (and (is-eq value "down") (< target-price anchor-price))
-                )
             )
-            (ok {
-                anchor-height: anchor-height,
-                target-height: target-height,
-                anchor-price: anchor-price,
-                target-price: target-price,
-                value: value,
-                correct: (or up-and-more down-and-less)
-            })
+            (asserts! (< anchor-height target-height) err-invalid-args)
+            (asserts! (< (+ anchor-burn-height lead-burn-height) burn-block-height) err-premature-verify)
+
+            (let
+                (
+                    (anchor-price (try! (get-price anchor-height)))
+                    (target-price (try! (get-price target-height)))
+                    (up-and-more
+                        (and (is-eq value "up") (>= target-price anchor-price))
+                    )
+                    (down-and-less
+                        (and (is-eq value "down") (<= target-price anchor-price))
+                    )
+                )
+                (ok {
+                    anchor-height: anchor-height,
+                    anchor-burn-height: anchor-burn-height,
+                    value: value,
+                    anchor-price: anchor-price,
+                    target-price: target-price,
+                    correct: (or up-and-more down-and-less)
+                })
+            )
         )
     )
 )
 
-(define-private (get-price (height uint))
+(define-read-only (get-price (height uint))
     (let
         (
             (id (unwrap! (get-stacks-block-info? id-header-hash height) err-invalid-args))
