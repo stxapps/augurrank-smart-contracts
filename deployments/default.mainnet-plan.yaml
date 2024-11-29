@@ -9,10 +9,10 @@ plan:
     - id: 0
       transactions:
         - contract-publish:
-            contract-name: playground-ii
+            contract-name: augurrank-btc-v1
             expected-sender: SPGW94RBCYZNTV42XX57YZSHWZNKY9HYZJNYV8NR
             cost: 12080
-            path: contracts/playground.clar
+            path: contracts/augurrank-btc.clar
             anchor-block-only: true
             clarity-version: 3
       epoch: "3.0"
