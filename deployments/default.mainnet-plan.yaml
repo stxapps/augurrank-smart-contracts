@@ -1,0 +1,18 @@
+---
+id: 0
+name: Mainnet deployment
+network: mainnet
+stacks-node: "https://api.hiro.so"
+bitcoin-node: "http://blockstack:blockstacksystem@bitcoin.blockstack.com:8332"
+plan:
+  batches:
+    - id: 0
+      transactions:
+        - contract-publish:
+            contract-name: playground-i
+            expected-sender: SPGW94RBCYZNTV42XX57YZSHWZNKY9HYZJNYV8NR
+            cost: 12080
+            path: contracts/playground.clar
+            anchor-block-only: true
+            clarity-version: 3
+      epoch: "3.0"
