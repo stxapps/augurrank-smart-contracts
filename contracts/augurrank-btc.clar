@@ -1,15 +1,11 @@
-;; title: augurrank-btc
-;; version:
-;; summary:
-;; description:
-
 (define-constant lead-burn-height u100)
 (define-constant pred-fee u100000)
 
 (define-constant err-invalid-args (err u100))
 (define-constant err-in-anticipation (err u101))
-(define-constant err-premature-verify (err u102))
-(define-constant err-contract-call (err u103))
+(define-constant err-admin-only (err u102))
+(define-constant err-premature-verify (err u103))
+(define-constant err-block-info (err u104))
 
 (define-constant contract-deployer tx-sender)
 
@@ -46,7 +42,7 @@
 
 (define-public (verify (addr principal) (id uint) (target-height uint))
     (begin
-        (asserts! (is-eq contract-deployer contract-caller) err-invalid-args)
+        (asserts! (is-eq contract-deployer contract-caller) err-admin-only)
         (let
             (
                 (pred (unwrap! (map-get? preds { addr: addr, id: id }) err-invalid-args))
@@ -84,24 +80,21 @@
 (define-read-only (get-price (height uint))
     (let
         (
-            (id (unwrap! (get-stacks-block-info? id-header-hash height) err-invalid-args))
+            (id (unwrap! (get-stacks-block-info? id-header-hash height) err-block-info))
         )
         (at-block id
-            (let
-                (
-                    (price (unwrap!
-                        (contract-call?
-                            .amm-pool-v2-01
-                            get-price
-                            'SP102V8P0F7JX67ARQ77WEA3D3CFB5XW39REDT0AM.token-btc
-                            'SP102V8P0F7JX67ARQ77WEA3D3CFB5XW39REDT0AM.token-usd
-                            u0
-                        )
-                        err-contract-call
-                    ))
+            (ok (try!
+                (contract-call?
+                    'SP102V8P0F7JX67ARQ77WEA3D3CFB5XW39REDT0AM.amm-pool-v2-01
+                    get-helper-a
+                    'SP2XD7417HGPRTREMKF748VNEQPDRR0RMANB7X1NK.token-abtc
+                    'SP102V8P0F7JX67ARQ77WEA3D3CFB5XW39REDT0AM.token-wstx-v2
+                    'SP2XD7417HGPRTREMKF748VNEQPDRR0RMANB7X1NK.token-susdt
+                    u100000000
+                    u100000000
+                    u1
                 )
-                (ok price)
-            )
+            ))
         )
     )
 )

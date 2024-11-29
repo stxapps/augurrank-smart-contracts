@@ -16,6 +16,7 @@ contract_id = 'SP2XD7417HGPRTREMKF748VNEQPDRR0RMANB7X1NK.token-susdt'
 
 [[project.requirements]]
 contract_id = 'SP2XD7417HGPRTREMKF748VNEQPDRR0RMANB7X1NK.token-abtc'
+
 [contracts.amm-pool-v2-01]
 path = 'contracts/amm-pool-v2-01.clar'
 clarity_version = 3
@@ -26,10 +27,6 @@ path = 'contracts/augurrank-btc.clar'
 clarity_version = 3
 epoch = 3.0
 
-[contracts.playground]
-path = 'contracts/playground.clar'
-clarity_version = 3
-epoch = 3.0
 [repl.analysis]
 passes = ['check_checker']
 

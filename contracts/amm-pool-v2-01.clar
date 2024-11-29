@@ -1,33 +1,6 @@
-
-;; title: amm-pool-v2-01
-;; version:
-;; summary:
-;; description:
-
-;; traits
-;;
-
-;; token definitions
-;;
-
-;; constants
-;;
-
-;; data vars
-;;
-
-;; data maps
-;;
-
-;; public functions
-;;
-
-;; read only functions
-;;
-
-;; private functions
-;;
-
-(define-read-only (get-price (token-x principal) (token-y principal) (factor uint))
-    (ok u0)
+(define-read-only (get-helper-a (token-x principal) (token-y principal) (token-z principal) (factor-x uint) (factor-y uint) (dx uint))
+    (begin
+        (asserts! (> dx u0) (err u101))
+        (ok u0)
+    )
 )
