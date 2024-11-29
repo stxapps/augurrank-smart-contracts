@@ -16,9 +16,15 @@ it("ensures simnet is well initalised", () => {
 it("get-heights and get-usd-per-btc", () => {
   let cRes;
 
-  cRes = simnet.callReadOnlyFn('playground', 'get-heights', [Cl.uint(1)], wallet1);
+  cRes = simnet.callPublicFn('playground', 'get-pupb-v1',  [Cl.uint(1)], wallet1);
   console.log(JSON.stringify(cRes.result));
 
-  cRes = simnet.callReadOnlyFn('playground', 'get-usd-per-btc', [Cl.uint(1)], wallet1);
+  cRes = simnet.callPublicFn('playground', 'get-pupb-v2',  [Cl.uint(1)], wallet1);
+  console.log(JSON.stringify(cRes.result));
+
+  cRes = simnet.callReadOnlyFn('playground', 'get-upb-v1', [Cl.uint(1)], wallet1);
+  console.log(JSON.stringify(cRes.result));
+
+  cRes = simnet.callReadOnlyFn('playground', 'get-upb-v2', [Cl.uint(1)], wallet1);
   console.log(JSON.stringify(cRes.result));
 });

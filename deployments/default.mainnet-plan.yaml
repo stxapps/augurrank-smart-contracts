@@ -9,7 +9,7 @@ plan:
     - id: 0
       transactions:
         - contract-publish:
-            contract-name: playground-i
+            contract-name: playground-ii
             expected-sender: SPGW94RBCYZNTV42XX57YZSHWZNKY9HYZJNYV8NR
             cost: 12080
             path: contracts/playground.clar
