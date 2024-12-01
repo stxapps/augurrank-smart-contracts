@@ -6,6 +6,7 @@
 (define-constant err-admin-only (err u102))
 (define-constant err-premature-verify (err u103))
 (define-constant err-block-info (err u104))
+(define-constant err-invalid-height (err u105))
 
 (define-constant contract-deployer tx-sender)
 
@@ -77,6 +78,71 @@
     )
 )
 
+(define-public (not-available (addr principal) (id uint))
+    (begin
+        (asserts! (is-eq contract-deployer contract-caller) err-admin-only)
+        (ok {
+            correct: "n/a"
+        })
+    )
+)
+
+(define-public (verify-next (addr principal) (id uint) (target-height uint))
+    (let
+        (
+            (pred (unwrap! (map-get? preds { addr: addr, id: id }) err-invalid-args))
+            (anchor-height (get height pred))
+            (anchor-burn-height (get burn-height pred))
+            (value (get value pred))
+            (target-burn-height (+ anchor-burn-height lead-burn-height))
+        )
+        (asserts! (< anchor-height target-height) err-invalid-args)
+        (asserts! (< target-burn-height burn-block-height) err-premature-verify)
+
+        (let
+            (
+                (anchor-price (try! (get-price anchor-height)))
+                (target-price (try! (check-and-get-price target-height target-burn-height)))
+                (up-and-more
+                    (and (is-eq value "up") (>= target-price anchor-price))
+                )
+                (down-and-less
+                    (and (is-eq value "down") (<= target-price anchor-price))
+                )
+            )
+            (ok {
+                anchor-height: anchor-height,
+                anchor-burn-height: anchor-burn-height,
+                value: value,
+                anchor-price: anchor-price,
+                target-price: target-price,
+                correct: (or up-and-more down-and-less)
+            })
+        )
+    )
+)
+
+(define-public (not-available-next (addr principal) (id uint) (next-height uint))
+    (let
+        (
+            (pred (unwrap! (map-get? preds { addr: addr, id: id }) err-invalid-args))
+            (anchor-burn-height (get burn-height pred))
+            (target-burn-height (+ anchor-burn-height lead-burn-height))
+            (id (unwrap! (get-stacks-block-info? id-header-hash height) err-block-info))
+            (last-id (unwrap! (get-stacks-block-info? id-header-hash (- height u1)) err-block-info))
+        )
+        (at-block last-id
+            (asserts! (is-eq (- target-burn-height u1) burn-block-height) err-invalid-height)
+        )
+        (at-block id
+            (asserts! (is-eq (+ target-burn-height u1) burn-block-height) err-invalid-height)
+        )
+        (ok {
+            correct: "n/a"
+        })
+    )
+)
+
 (define-read-only (get-price (height uint))
     (let
         (
@@ -95,6 +161,35 @@
                     u1
                 )
             ))
+        )
+    )
+)
+
+(define-read-only (check-and-get-price (height uint) (burn-height uint))
+    (let
+        (
+            (id (unwrap! (get-stacks-block-info? id-header-hash height) err-block-info))
+            (last-id (unwrap! (get-stacks-block-info? id-header-hash (- height u1)) err-block-info))
+        )
+        (at-block last-id
+            (asserts! (is-eq (- burn-height u1) burn-block-height) err-invalid-height)
+        )
+        (at-block id
+            (begin
+                (asserts! (is-eq burn-height burn-block-height) err-invalid-height)
+                (ok (try!
+                    (contract-call?
+                        'SP102V8P0F7JX67ARQ77WEA3D3CFB5XW39REDT0AM.amm-pool-v2-01
+                        get-helper-a
+                        'SP2XD7417HGPRTREMKF748VNEQPDRR0RMANB7X1NK.token-abtc
+                        'SP102V8P0F7JX67ARQ77WEA3D3CFB5XW39REDT0AM.token-wstx-v2
+                        'SP2XD7417HGPRTREMKF748VNEQPDRR0RMANB7X1NK.token-susdt
+                        u100000000
+                        u100000000
+                        u1
+                    )
+                ))
+            )
         )
     )
 )
