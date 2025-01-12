@@ -10,9 +10,9 @@
 
 (define-constant contract-deployer tx-sender)
 
-(define-map last-ids principal uint)
+(define-map last-seqs principal uint)
 (define-map preds
-    { addr: principal, id: uint }
+    { addr: principal, seq: uint }
     { height: uint, burn-height: uint, value: (string-ascii 4) }
 )
 
@@ -22,31 +22,32 @@
 
         (let
             (
-                (last-id (default-to u0 (map-get? last-ids contract-caller)))
-                (last-pred (default-to { height: u0, burn-height: u0, value: "" } (map-get? preds { addr: contract-caller, id: last-id })))
-                (id (+ last-id u1))
+                (last-seq (default-to u0 (map-get? last-seqs contract-caller)))
+                (last-pred (default-to { height: u0, burn-height: u0, value: "" } (map-get? preds { addr: contract-caller, seq: last-seq })))
+                (seq (+ last-seq u1))
                 (last-burn-height (get burn-height last-pred))
             )
 
             (asserts! (< last-burn-height (- burn-block-height lead-burn-height)) err-in-anticipation)
 
-            (map-set last-ids contract-caller id)
+            (map-set last-seqs contract-caller seq)
             (map-set preds
-                { addr: contract-caller, id: id }
+                { addr: contract-caller, seq: seq }
                 { height: stacks-block-height, burn-height: burn-block-height, value: value }
             )
 
             (stx-transfer? pred-fee contract-caller contract-deployer)
+            (ok { seq: seq })
         )
     )
 )
 
-(define-public (verify (addr principal) (id uint) (target-height uint))
+(define-public (verify (addr principal) (seq uint) (target-height uint))
     (begin
         (asserts! (is-eq contract-deployer contract-caller) err-admin-only)
         (let
             (
-                (pred (unwrap! (map-get? preds { addr: addr, id: id }) err-invalid-args))
+                (pred (unwrap! (map-get? preds { addr: addr, seq: seq }) err-invalid-args))
                 (anchor-height (get height pred))
                 (anchor-burn-height (get burn-height pred))
                 (value (get value pred))
@@ -64,6 +65,7 @@
                     (down-and-less
                         (and (is-eq value "down") (<= target-price anchor-price))
                     )
+                    (correct (if (or up-and-more down-and-less) "TRUE" "FALSE")
                 )
                 (ok {
                     anchor-height: anchor-height,
@@ -71,26 +73,27 @@
                     value: value,
                     anchor-price: anchor-price,
                     target-price: target-price,
-                    correct: (or up-and-more down-and-less)
+                    correct: correct
                 })
             )
         )
     )
 )
 
-(define-public (not-available (addr principal) (id uint))
+(define-public (not-available (addr principal) (seq uint))
     (begin
         (asserts! (is-eq contract-deployer contract-caller) err-admin-only)
+        (unwrap! (map-get? preds { addr: addr, seq: seq }) err-invalid-args)
         (ok {
-            correct: "n/a"
+            correct: "N/A"
         })
     )
 )
 
-(define-public (verify-next (addr principal) (id uint) (target-height uint))
+(define-public (verify-next (addr principal) (seq uint) (target-height uint))
     (let
         (
-            (pred (unwrap! (map-get? preds { addr: addr, id: id }) err-invalid-args))
+            (pred (unwrap! (map-get? preds { addr: addr, seq: seq }) err-invalid-args))
             (anchor-height (get height pred))
             (anchor-burn-height (get burn-height pred))
             (value (get value pred))
@@ -122,10 +125,10 @@
     )
 )
 
-(define-public (not-available-next (addr principal) (id uint) (next-height uint))
+(define-public (not-available-next (addr principal) (seq uint) (next-height uint))
     (let
         (
-            (pred (unwrap! (map-get? preds { addr: addr, id: id }) err-invalid-args))
+            (pred (unwrap! (map-get? preds { addr: addr, seq: seq }) err-invalid-args))
             (anchor-burn-height (get burn-height pred))
             (target-burn-height (+ anchor-burn-height lead-burn-height))
             (id (unwrap! (get-stacks-block-info? id-header-hash height) err-block-info))
@@ -138,7 +141,7 @@
             (asserts! (is-eq (+ target-burn-height u1) burn-block-height) err-invalid-height)
         )
         (ok {
-            correct: "n/a"
+            correct: "N/A"
         })
     )
 )
