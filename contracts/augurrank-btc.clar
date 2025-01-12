@@ -19,7 +19,6 @@
 (define-public (predict (value (string-ascii 4)))
     (begin
         (asserts! (or (is-eq value "up") (is-eq value "down")) err-invalid-args)
-
         (let
             (
                 (last-seq (default-to u0 (map-get? last-seqs contract-caller)))
@@ -36,7 +35,7 @@
                 { height: stacks-block-height, burn-height: burn-block-height, value: value }
             )
 
-            (stx-transfer? pred-fee contract-caller contract-deployer)
+            (try! (stx-transfer? pred-fee contract-caller contract-deployer))
             (ok { seq: seq })
         )
     )
@@ -54,7 +53,6 @@
             )
             (asserts! (< anchor-height target-height) err-invalid-args)
             (asserts! (< (+ anchor-burn-height lead-burn-height) burn-block-height) err-premature-verify)
-
             (let
                 (
                     (anchor-price (try! (get-price anchor-height)))
@@ -65,7 +63,7 @@
                     (down-and-less
                         (and (is-eq value "down") (<= target-price anchor-price))
                     )
-                    (correct (if (or up-and-more down-and-less) "TRUE" "FALSE")
+                    (correct (if (or up-and-more down-and-less) "TRUE" "FALSE"))
                 )
                 (ok {
                     anchor-height: anchor-height,

@@ -23,11 +23,11 @@ it("predict and verify", () => {
 
   // first pred
   cRes = simnet.callPublicFn('augurrank-btc', 'predict', [Cl.stringAscii('down')], wallet1);
-  expect(cRes.result).toBeOk(Cl.bool(true));
+  expect(cRes.result).toBeOk(Cl.tuple({ seq: Cl.uint(1) }));
   const [h1, bh1] = [simnet.blockHeight, simnet.burnBlockHeight];
 
   cRes = simnet.callPublicFn('augurrank-btc', 'predict', [Cl.stringAscii('up')], wallet2);
-  expect(cRes.result).toBeOk(Cl.bool(true));
+  expect(cRes.result).toBeOk(Cl.tuple({ seq: Cl.uint(1) }));
   const [h2, bh2] = [simnet.blockHeight, simnet.burnBlockHeight];
 
   // invalid pred args
@@ -56,7 +56,7 @@ it("predict and verify", () => {
   expect(cRes.result).toBeErr(Cl.uint(101));
 
   cRes = simnet.callPublicFn('augurrank-btc', 'predict', [Cl.stringAscii('up')], wallet3);
-  expect(cRes.result).toBeOk(Cl.bool(true));
+  expect(cRes.result).toBeOk(Cl.tuple({ seq: Cl.uint(1) }));
   const [h3, bh3] = [simnet.blockHeight, simnet.burnBlockHeight];
 
   simnet.mineEmptyBurnBlocks(96);
@@ -71,7 +71,7 @@ it("predict and verify", () => {
     value: Cl.stringAscii('down'),
     'anchor-price': Cl.uint(0),
     'target-price': Cl.uint(0),
-    correct: Cl.bool(true),
+    correct: Cl.stringAscii('TRUE'),
   }));
 
   cRes = simnet.callPublicFn(
@@ -83,7 +83,7 @@ it("predict and verify", () => {
     value: Cl.stringAscii('up'),
     'anchor-price': Cl.uint(0),
     'target-price': Cl.uint(0),
-    correct: Cl.bool(true),
+    correct: Cl.stringAscii('TRUE'),
   }));
 
   // premature verify
@@ -106,10 +106,10 @@ it("predict and verify", () => {
 
   // second pred
   cRes = simnet.callPublicFn('augurrank-btc', 'predict', [Cl.stringAscii('down')], wallet1);
-  expect(cRes.result).toBeOk(Cl.bool(true));
+  expect(cRes.result).toBeOk(Cl.tuple({ seq: Cl.uint(2) }));
 
   cRes = simnet.callPublicFn('augurrank-btc', 'predict', [Cl.stringAscii('up')], wallet2);
-  expect(cRes.result).toBeOk(Cl.bool(true));
+  expect(cRes.result).toBeOk(Cl.tuple({ seq: Cl.uint(2) }));
 
   cRes = simnet.callPublicFn('augurrank-btc', 'predict', [Cl.stringAscii('up')], wallet3);
   expect(cRes.result).toBeErr(Cl.uint(101));
@@ -131,12 +131,28 @@ it("predict and verify", () => {
     value: Cl.stringAscii('up'),
     'anchor-price': Cl.uint(0),
     'target-price': Cl.uint(0),
-    correct: Cl.bool(true),
+    correct: Cl.stringAscii('TRUE'),
   }));
 
   simnet.mineEmptyBlocks(2048);
 
   // thrid pred
   cRes = simnet.callPublicFn('augurrank-btc', 'predict', [Cl.stringAscii('down')], wallet1);
-  expect(cRes.result).toBeOk(Cl.bool(true));
+  expect(cRes.result).toBeOk(Cl.tuple({ seq: Cl.uint(3) }));
+
+  // n/a
+  cRes = simnet.callPublicFn(
+    'augurrank-btc', 'not-available', [Cl.address(wallet1), Cl.uint(2)], wallet2
+  );
+  expect(cRes.result).toBeErr(Cl.uint(102));
+
+  cRes = simnet.callPublicFn(
+    'augurrank-btc', 'not-available', [Cl.address(wallet1), Cl.uint(99)], deployer
+  );
+  expect(cRes.result).toBeErr(Cl.uint(100));
+
+  cRes = simnet.callPublicFn(
+    'augurrank-btc', 'not-available', [Cl.address(wallet1), Cl.uint(3)], deployer
+  );
+  expect(cRes.result).toBeOk(Cl.tuple({ correct: Cl.stringAscii('N/A') }));
 });
