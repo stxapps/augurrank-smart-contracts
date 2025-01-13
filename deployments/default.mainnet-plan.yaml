@@ -9,9 +9,9 @@ plan:
     - id: 0
       transactions:
         - contract-publish:
-            contract-name: augurrank-btc-v1
+            contract-name: augurrank-btc-v2
             expected-sender: SPGW94RBCYZNTV42XX57YZSHWZNKY9HYZJNYV8NR
-            cost: 12080
+            cost: 4191
             path: contracts/augurrank-btc.clar
             anchor-block-only: true
             clarity-version: 3
