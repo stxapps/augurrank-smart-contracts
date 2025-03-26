@@ -7,43 +7,64 @@
 
 (define-constant contract-owner tx-sender)
 (define-data-var markets-contract principal tx-sender)
-(define-data-var token-uri (optional (string-utf8 256)) (some u"https://augurrank.com/augur-token-metadata.json"))
+(define-data-var store-contract principal tx-sender)
+(define-data-var token-uri (optional (string-utf8 256)) none)
 
 (define-public (transfer (amount uint) (sender principal) (recipient principal) (memo (optional (buff 34))))
   (begin
     (asserts!
       (or
-        (and (is-eq tx-sender contract-owner) (is-eq sender contract-owner))
-        (is-eq contract-caller (var-get markets-contract)))
-      ERR-ONLY-MARKETS)
+        (and (is-eq tx-sender sender) (is-eq tx-sender contract-owner))
+        (is-eq contract-caller (var-get markets-contract))
+        (is-eq contract-caller (var-get store-contract))
+      )
+      ERR-ONLY-MARKETS
+    )
     (try! (ft-transfer? augur-token amount sender recipient))
     (match memo to-print (print to-print) 0x)
     (ok true)
-  ))
+  )
+)
 
 (define-read-only (get-name)
-  (ok "Augur"))
+  (ok "Augur")
+)
 
 (define-read-only (get-symbol)
-  (ok "AUG"))
+  (ok "AUG")
+)
 
 (define-read-only (get-decimals)
-  (ok u6))
+  (ok u6)
+)
 
 (define-read-only (get-balance (owner principal))
-  (ok (ft-get-balance augur-token owner)))
+  (ok (ft-get-balance augur-token owner))
+)
 
 (define-read-only (get-total-supply)
-  (ok (ft-get-supply augur-token)))
+  (ok (ft-get-supply augur-token))
+)
 
 (define-read-only (get-token-uri)
-  (ok (var-get token-uri)))
+  (ok (var-get token-uri))
+)
 
 (define-public (set-markets-contract (new-contract principal))
   (begin
     (asserts! (is-eq tx-sender contract-owner) ERR-UNAUTHORIZED)
     (var-set markets-contract new-contract)
-    (ok true)))
+    (ok true)
+  )
+)
+
+(define-public (set-store-contract (new-contract principal))
+  (begin
+    (asserts! (is-eq tx-sender contract-owner) ERR-UNAUTHORIZED)
+    (var-set store-contract new-contract)
+    (ok true)
+  )
+)
 
 (define-public (set-token-uri (value (string-utf8 256)))
   (begin
@@ -55,15 +76,22 @@
         contract-id: (as-contract tx-sender),
         token-class: "ft"
       }
-    }))))
+    }))
+  )
+)
 
 (define-public (mint (amount uint) (recipient principal) (memo (optional (buff 34))))
   (begin
     (asserts! (is-eq tx-sender contract-owner) ERR-UNAUTHORIZED)
     (try! (ft-mint? augur-token amount recipient))
     (match memo to-print (print to-print) 0x)
-    (ok true)))
+    (ok true)
+  )
+)
 
+(define-public (burn (amount uint))
+  (ft-burn? augur-token amount tx-sender)
+)
 
 ;; ---------------------------------------------------------
 ;; Utility
