@@ -1,62 +1,62 @@
-
-(define-constant ERR-UNAUTHORIZED (err u200))
-
-(define-constant ERR-EVENT-NOT-FOUND (err u202))
-(define-constant ERR-OUTCOME-NOT-FOUND (err u203))
-
-(define-constant ERR-EVENT-NOT-OPENED (err u205))
-(define-constant ERR-EVENT-NOT-RESOLVED (err u205))
-
-(define-constant ERR-INVALID-AMOUNT (err u201))
-(define-constant ERR-INVALID-COST (err u201))
-
-ERR-COST-TOO-HIGH
-ERR-BALANCE-TOO-LOW
-ERR-AMOUNT-TOO-LOW
-
+(define-constant ERR-UNAUTHORIZED (err u801))
+(define-constant ERR-EVENT-NOT-FOUND (err u802)) ;; check is in use
+(define-constant ERR-EVENT-NOT-OPENED (err u803))
+(define-constant ERR-EVENT-NOT-RESOLVED (err u804))
+(define-constant ERR-WIN-OUTCOME-NOT-FOUND (err u805))
+(define-constant ERR-INVALID-AMOUNT (err u806))
+(define-constant ERR-INVALID-COST (err u807))
+(define-constant ERR-COST-TOO-HIGH (err u808))
+(define-constant ERR-BALANCE-TOO-LOW (err u809))
+(define-constant ERR-AMOUNT-TOO-LOW (err u810))
 
 (define-constant SCALE u1000000)
 (define-constant E u2718281) ;; e ≈ 2.718281
 
 (define-constant contract-owner principal tx-sender)
-(define-data-var token-contract principal tx-sender) ;; TODO must set new value?
+(define-data-var token-contract principal tx-sender)
 (define-data-var next-event-id uint u0)
 
 (define-map events
   { event-id: uint }
   {
     title: (string-ascii 256),
-    description: (string-ascii 256),
+    desc: (string-ascii 256),
+    beta: uint, ;; LMSR sensitivity parameter (scaled)
+    ;; 0: init, 1: opened, 2: closed, 3: resolved, 4: rewarded,
+    ;;   5: paused, 6: disputed, 7: canceled, 8: returned
     status: uint,
-    beta: uint ;; LMSR sensitivity parameter (in micro-units, e.g., u1000000 = 1.0)
+    win-outcome-id: (optional uint)
   }
 )
 (define-map outcomes
   { event-id: uint, outcome-id: uint }
   { 
-    description: (string-ascii 128),
-    share-amount: uint, ;; Total shares issued (in micro-units)
-    ;;winning: (optional bool) ;; Set after resolution
+    desc: (string-ascii 128),
+    share-amount: uint, ;; Total shares issued (scaled)
   }
 )
 (define-map users
-  { event-id: uint, outcome-id: uint, user: principal }
-  { share-amount: uint } ;; (in micro-units)
+  { event-id: uint, outcome-id: uint, user-id: principal }
+  {
+    share-amount: uint, ;; Shares holded per user (scaled)
+    is-settled: bool,
+  }
 )
 
-;; Create an event (admin only)
-(define-public (create-event (description (string-ascii 256)) (beta uint) (outcome-descs (list 10 (string-ascii 128))))
+
+
+(define-public (create-event (desc (string-ascii 256)) (beta uint) (outcome-descs (list 10 (string-ascii 128))))
   (let
     (
       (event-id (var-get next-event-id))
     )
-    (asserts! (is-eq tx-sender (var-get admin)) ERR-UNAUTHORIZED)
+    (asserts! (is-eq tx-sender contract-owner) ERR-UNAUTHORIZED)
     (map-insert
        events
        { event-id: event-id }
-       { description: description, resolved: false, resolution-time: none, beta: beta }
+       { desc: desc, resolved: false, resolution-time: none, beta: beta }
     )
-    (map set-outcome outcome-descs event-id)
+    ;;(map set-outcome outcome-descs event-id) ;;wrong?
     (var-set next-event-id (+ event-id u1))
     (ok event-id)
   )
@@ -71,161 +71,225 @@ ERR-AMOUNT-TOO-LOW
     (map-insert
       outcomes
       { event-id: event-id, outcome-id: outcome-id }
-      { description: desc, total-shares: u0, winning: none }
+      { desc: desc, total-shares: u0, winning: none }
     )
   )
 )
-
-
-
 
 ;;
 ;; should always fix to 10 choices/outcomes? should specify when create an event?
 ;;
 
-
-
-
-
-;; Buy shares
-(define-public (sell-shares (event-id uint) (outcome-id uint) (amount uint))
+(define-public (set-event-beta (event-id uint) (n-beta uint))
   (let
     (
-      (event (unwrap-panic (map-get? events { event-id: event-id })))
+      (event (unwrap-panic (get-event event-id)))
+    )
+    (asserts! (is-eq tx-sender contract-owner) ERR-UNAUTHORIZED)
+    (map-set events { event-id: event-id }
+      (merge event { beta: n-beta })
+    )
+    (ok true)
+  )
+)
+
+(define-public (set-event-status (event-id uint) (n-status uint) (win-outcome-id (optional uint)))
+  (let
+    (
+      (event (unwrap-panic (get-event event-id)))
+    )
+    (asserts! (is-eq tx-sender contract-owner) ERR-UNAUTHORIZED)
+    (asserts! (or (not (is-eq n-status u3)) (is-some win-outcome-id)) ERR-WIN-OUTCOME-NOT-FOUND)
+    (map-set events { event-id: event-id }
+      (if (is-eq n-status 3)
+        (merge event { status: n-status, win-outcome-id: win-outcome-id })
+        (merge event { status: n-status })
+      )
+    )
+    (ok true)
+  )
+)
+
+(define-public (buy-shares (event-id uint) (outcome-id uint) (amount uint))
+  (let
+    (
+      (event (unwrap-panic (get-event event-id)))
       (beta (get beta event))
-      (shares (get-outcome-shares event-id))
-      (cost (get-delta-cost beta shares outcome-id true amount))
-      (outcome (unwrap-panic (map-get? outcomes { event-id: event-id, outcome-id: outcome-id })))
+      (qqbs (get-qqbs event-id beta))
+      (cost (get-delta-cost beta qqbs outcome-id true amount))
+      (outcome (unwrap-panic (get-outcome event-id outcome-id)))
       (user (default-to
         { share-amount: u0 }
-        (map-get? users { event-id: event-id, outcome-id: outcome-id, user: tx-sender })
+        (get-user event-id outcome-id tx-sender)
       ))
-      (balance (unwrap-panic (contract-call? (var-get token-contract) get-balance tx-sender)))
+      (balance (unwrap-panic (get-balance tx-sender)))
     )
     (asserts! (is-eq (get status event) 1) ERR-EVENT-NOT-OPENED)
-    (asserts! (> amount u0) ERR-INVALID-AMOUNT)
-    ;; amount in whole shares, no frac
+    (asserts! (is-amount-valid amount) ERR-INVALID-AMOUNT)
     (asserts! (> cost u0) ERR-INVALID-COST)
     (asserts! (<= cost balance) ERR-BALANCE-TOO-LOW)
-    (try!
-      (contract-call? (var-get token-contract) transfer cost tx-sender contract-owner none)
-    )
+    (try! (transfer cost tx-sender contract-owner none))
     (map-set outcomes { event-id: event-id, outcome-id: outcome-id }
       (merge outcome { share-amount: (+ (get share-amount outcome) amount) })
     )
-    (map-set users { event-id: event-id, outcome-id: outcome-id, user: tx-sender }
+    (map-set users { event-id: event-id, outcome-id: outcome-id, user-id: tx-sender }
       (merge user { share-amount: (+ (get share-amount user) amount) })
     )
     (ok { cost: cost })
   )
 )
 
-(define-public (buy-shares (event-id uint) (outcome-id uint) (max-cost uint))
+(define-public (buy-amap-shares (event-id uint) (outcome-id uint) (max-cost uint))
   (let
     (
-      (event (unwrap-panic (map-get? events { event-id: event-id })))
+      (event (unwrap-panic (get-event event-id)))
       (beta (get beta event))
-      (shares (get-outcome-shares event-id))
-      (amount (get-delta-amount beta shares outcome-id max-cost))
-      (cost (get-delta-cost beta shares outcome-id true amount))
-      (outcome (unwrap-panic (map-get? outcomes { event-id: event-id, outcome-id: outcome-id })))
+      (qqbs (get-qqbs event-id beta))
+      (amount (get-delta-amount beta qqbs outcome-id max-cost))
+      (cost (get-delta-cost beta qqbs outcome-id true amount))
+      (outcome (unwrap-panic (get-outcome event-id outcome-id)))
       (user (default-to
         { share-amount: u0 }
-        (map-get? users { event-id: event-id, outcome-id: outcome-id, user: tx-sender })
+        (get-user event-id outcome-id tx-sender)
       ))
-      (balance (unwrap-panic (contract-call? (var-get token-contract) get-balance tx-sender)))
+      (balance (unwrap-panic (get-balance tx-sender)))
     )
     (asserts! (is-eq (get status event) 1) ERR-EVENT-NOT-OPENED)
-    (asserts! (> amount u0) ERR-INVALID-AMOUNT)
+    (asserts! (is-amount-valid amount) ERR-INVALID-AMOUNT)
     (asserts! (> cost u0) ERR-INVALID-COST)
     (asserts! (<= cost max-cost) ERR-COST-TOO-HIGH)
     (asserts! (<= cost balance) ERR-BALANCE-TOO-LOW)
-    (try!
-      (contract-call? (var-get token-contract) transfer cost tx-sender contract-owner none)
-    )
+    (try! (transfer cost tx-sender contract-owner none))
     (map-set outcomes { event-id: event-id, outcome-id: outcome-id }
       (merge outcome { share-amount: (+ (get share-amount outcome) amount) })
     )
-    (map-set users { event-id: event-id, outcome-id: outcome-id, user: tx-sender }
+    (map-set users { event-id: event-id, outcome-id: outcome-id, user-id: tx-sender }
       (merge user { share-amount: (+ (get share-amount user) amount) })
     )
-    (ok {
-      amount: amount,
-      cost: cost
-    })
+    (ok { amount: amount, cost: cost })
   )
 )
 
 (define-public (sell-shares (event-id uint) (outcome-id uint) (amount uint))
   (let
     (
-      (event (unwrap-panic (map-get? events { event-id: event-id })))
+      (event (unwrap-panic (get-event event-id)))
       (beta (get beta event))
-      (shares (get-outcome-shares event-id))
-      (cost (get-delta-cost beta shares outcome-id false amount))
-      (outcome (unwrap-panic (map-get? outcomes { event-id: event-id, outcome-id: outcome-id })))
-      (user (unwrap-panic (map-get? users { event-id: event-id, outcome-id: outcome-id, user: tx-sender })))
+      (qqbs (get-qqbs event-id beta))
+      (cost (get-delta-cost beta qqbs outcome-id false amount))
+      (outcome (unwrap-panic (get-outcome event-id outcome-id)))
+      (user (unwrap-panic (get-user event-id outcome-id tx-sender)))
     )
     (asserts! (is-eq (get status event) 1) ERR-EVENT-NOT-OPENED)
-    (asserts! (> amount u0) ERR-INVALID-AMOUNT)    
-    ;; amount in whole shares, no frac
+    (asserts! (is-amount-valid amount) ERR-INVALID-AMOUNT)
     (asserts! (> cost u0) ERR-INVALID-COST)
     (asserts! (<= amount (get share-amount user)) ERR-AMOUNT-TOO-LOW)
-    (try!
-      (contract-call? (var-get token-contract) transfer cost contract-owner tx-sender none)
-    )
+    (try! (transfer cost contract-owner tx-sender none))
     (map-set outcomes { event-id: event-id, outcome-id: outcome-id }
       (merge outcome { share-amount: (- (get share-amount outcome) amount) })
     )
-    (map-set users { event-id: event-id, outcome-id: outcome-id, user: tx-sender }
+    (map-set users { event-id: event-id, outcome-id: outcome-id, user-id: tx-sender }
       (merge user { share-amount: (- (get share-amount user) amount) })
     )
     (ok { cost: cost })
   )
 )
 
-;; buy and sell shares return current prices to keep up to date
+(define-pubilc (claim-reward (event-id uint))
+  (let
+    (
+      (event (unwrap-panic (get-event event-id)))
+      (status (get status event))
+      (win-outcome-id (unwrap-panic (get win-outcome-id event)))
+      (user (unwrap-panic (get-user event-id win-outcome-id tx-sender)))
+      (amount (get share-amount user))
+      (is-settled (get is-settled user))
+    )
+    (asserts! (is-eq status 3) ERR-EVENT-NOT-RESOLVED)
+    (asserts! (is-eq is-settled false) ERR-)
+    (try! (transfer amount contract-owner tx-sender none))
+    (map-set users { event-id: event-id, outcome-id: win-outcome-id, user-id: tx-sender }
+      (merge user { is-settled: true })
+    )
+    (ok { reward: amount })
+  )
+)
 
+(define-private (pay-reward (winner { event-id: uint, outcome-id: uint, user-id: principal}))
+  (let
+    (
+      (event-id (get event-id winner))
+      (outcome-id (get outcome-id winner))
+      (user-id (get user-id winner))
+      (event (unwrap-panic (get-event event-id)))
+      (status (get status event))
+      (win-outcome-id (unwrap-panic (get win-outcome-id event)))
+      (user (unwrap-panic (get-user event-id win-outcome-id tx-sender)))
+      (amount (get share-amount user))
+      (is-settled (get is-settled user))
+    )
+    (asserts! (is-eq status 3) ERR-EVENT-NOT-RESOLVED)
+    (asserts! (is-eq is-settled false) ERR-)
+    (try! (transfer amount contract-owner user-id none))
+    (map-set users { event-id: event-id, outcome-id: win-outcome-id, user-id: user-id }
+      (merge user { is-settled: true })
+    )
+  )
+)
+(define-public (pay-rewards (winners (list 200 { event-id: uint, outcome-id: uint, user-id: principal })))
+  (begin
+    (asserts! (is-eq tx-sender contract-owner) ERR-UNAUTHORIZED)
+    (fold check-err (map pay-reward winners) (ok true))
+  )
+)
 
-;; Get current share prices per outcome for an event
+(define-private (refund-fund (user { event-id: uint, outcome-id: uint, user-id: principal}))
 
+)
+(define-public (refund-funds (users (list 200 { event-id: uint, outcome-id: uint, user-id: principal })))
+  (begin
+    (asserts! (is-eq tx-sender contract-owner) ERR-UNAUTHORIZED)
+    (fold check-err (map refund-fund users) (ok true))
+  )
+)
 
-;; set status
-
-
-;; rewards
-
-
+(define-public (set-token-contract (new-contract principal))
+  (begin
+    (asserts! (is-eq tx-sender contract-owner) ERR-UNAUTHORIZED)
+    (var-set token-contract new-contract)
+    (ok true)
+  )
+)
 
 ;; ---------------------------------------------------------
 ;; LMSR
 ;; ---------------------------------------------------------
 
 ;; y = ∑e^(q_i / b)
-(define-private (get-sum-exp-inner (acc uint) (data { id: uint, amount: uint }))
-  (+ acc (exp (/ (* (get amount data) SCALE) beta)))
+(define-private (get-sum-exp-inner (acc uint) (qqb { id: uint, q: uint, qb: uint }))
+  (+ acc (exp (get qb qqb)))
 )
-(define-private (get-sum-exp (beta uint) (shares (list 10 { id: uint, amount: uint })))
-  (fold get-sum-exp-inner shares u0)
+(define-read-only (get-sum-exp qqbs (list 10 { id: uint, q: uint: qb: uint }))
+  (fold get-sum-exp-inner qqbs u0)
 )
 
 ;; C = b * ln(∑e^(q_i / b))
-(define-private (get-cost (beta uint) (shares (list 10 { id: uint, amount: uint })))
+(define-read-only (get-cost (beta uint) (qqbs (list 10 { id: uint, q: uint, qb: uint })))
   (let
     (
-      (sum-exp (get-sum-exp beta shares))
+      (sum-exp (get-sum-exp qqbs))
     )
     (/ (* beta (ln sum-exp)) SCALE)
   )
 )
 
 ;; ΔC = C(new) - C(current)
-(define-private (get-delta-cost (beta uint) (shares (list 10 { id: uint, amount: uint })) (id uint) (is-buy bool) (amount uint))
+(define-read-only (get-delta-cost (beta uint) (qqbs (list 10 { id: uint, q: uint, qb: uint })) (id uint) (is-buy bool) (amount uint))
   (let
     (
-      (new-shares (get-new-shares shares id is-buy amount))
-      (cost-before (get-cost beta shares))
-      (cost-after (get-cost beta new-shares))
+      (n-qqbs (get-new-qqbs beta qqbs id is-buy amount))
+      (cost-before (get-cost beta qqbs))
+      (cost-after (get-cost beta n-qqbs))
     )
     (if (<= cost-after cost-before)
       u0
@@ -235,95 +299,165 @@ ERR-AMOUNT-TOO-LOW
 )
 
 ;; Δq = b * ln(S * e^(C / b) - S + e^(q_k / b)) - q_k, S = ∑e^(q_i / b)
-(define-private (get-delta-amount (beta uint) (shares (list 10 { id: uint, amount: uint })) (id uint) (max-cost uint))
+(define-read-only (get-delta-amount (beta uint) (qqbs (list 10 { id: uint, q: uint, qb: uint })) (id uint) (max-cost uint))
   (let
     (
-      (sum-exp (get-sum-exp shares))
-      (qk (get amount (unwrap-panic (element-at? shares id))))
-      (exp-qkb (exp (/ (* qk SCALE) beta)))
+      (sum-exp (get-sum-exp qqbs))
+      (qqb (unwrap-panic (element-at? qqbs id)))
+      (qk (get q qqb))
+      (qkb (get qb qqb))
+      (exp-qkb (exp qkb))
       (exp-cb (exp (/ (* max-cost SCALE) beta)))
-      (inner-term (- (+ (/ (* sum-exp exp-cb) SCALE) exp-qkb) sum-exp))
+      (i-term (- (+ (/ (* sum-exp exp-cb) SCALE) exp-qkb) sum-exp))
     )
-    (if (< inner-term u1) 
+    (if (< i-term u1)
       u0
       (let
         (
-          (ln-term (ln inner-term))
-          (new-qk (/ (* beta ln-term) SCALE))
+          (l-term (ln i-term))
+          (n-qk (/ (* beta l-term) SCALE))
         )
-        (if (<= new-qk qk)
+        (if (<= n-qk qk)
           u0
-          (* (/ (- new-qk current-qk) SCALE) SCALE) ;; whole shares, no frac
+          (* (/ (- n-qk qk) SCALE) SCALE) ;; whole shares, no frac
         )
       )
     )
   )
 )
 
-;; ---------------------------------------------------------
-;; Helpers
-;; ---------------------------------------------------------
-
-;; Get share amounts per outcome for an event
-(define-private (get-outcome-shares (event-id uint))
+;; C_i = e^(q_i / b) / ∑e^(q / b)
+(define-read-only (get-share-cost (sum-exp uint) (qqb { id: uint, q: uint, qb: uint}))
   (let
     (
-      (outcome-0 (map-get? outcomes { event-id: event-id, outcome-id: u0 }))
-      (outcome-1 (map-get? outcomes { event-id: event-id, outcome-id: u1 }))
-      (outcome-2 (map-get? outcomes { event-id: event-id, outcome-id: u2 }))
-      (outcome-3 (map-get? outcomes { event-id: event-id, outcome-id: u3 }))
-      (outcome-4 (map-get? outcomes { event-id: event-id, outcome-id: u4 }))
-      (outcome-5 (map-get? outcomes { event-id: event-id, outcome-id: u5 }))
-      (outcome-6 (map-get? outcomes { event-id: event-id, outcome-id: u6 }))
-      (outcome-7 (map-get? outcomes { event-id: event-id, outcome-id: u7 }))
-      (outcome-8 (map-get? outcomes { event-id: event-id, outcome-id: u8 }))
-      (outcome-9 (map-get? outcomes { event-id: event-id, outcome-id: u9 }))
-      (wrpd-shares (filter
-        is-some
-        (list
-          (match outcome-0 data (some { id: u0, amount: (get share-amount data) }) none)
-          (match outcome-1 data (some { id: u1, amount: (get share-amount data) }) none)
-          (match outcome-2 data (some { id: u2, amount: (get share-amount data) }) none)
-          (match outcome-3 data (some { id: u3, amount: (get share-amount data) }) none)
-          (match outcome-4 data (some { id: u4, amount: (get share-amount data) }) none)
-          (match outcome-5 data (some { id: u5, amount: (get share-amount data) }) none)
-          (match outcome-6 data (some { id: u6, amount: (get share-amount data) }) none)
-          (match outcome-7 data (some { id: u7, amount: (get share-amount data) }) none)
-          (match outcome-8 data (some { id: u8, amount: (get share-amount data) }) none)
-          (match outcome-9 data (some { id: u9, amount: (get share-amount data) }) none)
-        )
-      ))
+      (qkb (get qb qqb))
+      (exp-qkb (exp qkb))
     )
+    (/ (* exp-qkb SCALE) sum-exp)
+  )
+)
+
+;; ---------------------------------------------------------
+;; Read helpers
+;; ---------------------------------------------------------
+
+;; Validate amount > 0 and no frac
+(define-read-only (is-amount-valid (amount uint))
+  (let
     (
-      (map unwrap-panic wrpd-shares)
+      (frac (mod amount SCALE))
+    )
+    (and (> amount u0) (is-eq frac u0))
+  )
+)
+
+;; Get event
+(define-read-only (get-event (event-id uint))
+  (map-get? events { event-id: event-id })
+)
+
+;; Get outcome
+(define-read-only (get-outcome (event-id uint) (outcome-id uint))
+  (map-get? outcomes { event-id: event-id, outcome-id: outcome-id })
+)
+
+;; Get user
+(define-read-only (get-user (event-id uint) (outcome-id uint) (user-id principal))
+  (map-get? users { event-id: event-id, outcome-id: outcome-id, user-id: user-id })
+)
+
+;; Get user in-game money balance
+(define-read-only (get-balance (user-id principal))
+  (contract-call? (var-get token-contract) get-balance user-id)
+)
+
+;; Get q and q/b for each event outcome
+(define-private (get-qqb (id uint) (outcome { desc: (string-ascii 128), share-amount: uint }) (beta uint))
+  {
+    id: id,
+    q: (get share-amount outcome),
+    qb: (/ (* (get share-amount outcome) SCALE) beta)
+  }
+)
+(define-read-only (get-qqbs (event-id uint) (beta uint))
+  (let
+    (
+      (r-outcomes (map
+        get-outcome
+        (list event-id event-id event-id event-id event-id event-id event-id event-id event-id event-id)
+        (list u0 u1 u2 u3 u4 u5 u6 u7 u8 u9)
+      ))
+      (f-outcomes (filter is-some r-outcomes))
+      (u-outcomes (map unwrap-panic f-outcomes))
+    )
+    (map get-qqb
+      (list u0 u1 u2 u3 u4 u5 u6 u7 u8 u9)
+      u-outcomes
+      (list beta beta beta beta beta beta beta beta beta beta)
     )
   )
 )
 
-;; Get new updated shares based on the current ones
-(define-private (get-new-share (share { id: uint, amount: uint }) (id uint) (is-buy bool) (amount uint))
-  (if (is-eq (get id share) id)
-    { 
-      id: (get id share),
-      amount: (if is-buy 
-        (+ (get amount share) amount)
-        (if (>= (get amount share) amount)
-          (- (get amount share) amount)
-          u0
-        )
-      )
-    }
-    share
+;; Get new updated q and q/b based on the current ones
+(define-private (get-new-qqb (qqb { id: uint, q: uint, qb: uint }))
+  { id: (get id qqb), q: (get q qqb), qb: (get qb qqb) }
+)
+(define-read-only (get-new-qqbs (beta uint) (qqbs (list 10 { id: uint, q: uint, qb: uint })) (id uint) (is-buy bool) (amount uint))
+  (let
+    (
+      (c-qqbs (map get-new-qqb qqbs))
+      (qqb (unwrap-panic (element-at? c-qqbs id)))
+      (q (get q qqb))
+      (n-q (if is-buy (+ q amount) (if (> q amount) (- q amount) u0)))
+      (n-qqb { id: id, q: n-q, qb: (/ (* n-q SCALE) beta) })
+    )
+    (unwrap-panic (replace-at? c-qqbs id n-qqb))
   )
 )
-(define-private (get-new-shares (shares (list 10 { id: uint, amount: uint })) (id uint) (is-buy bool) (amount uint))
-  (map
-    get-new-share
-    shares
-    (list id id id id id id id id id id)
-    (list is-buy is-buy is-buy is-buy is-buy is-buy is-buy is-buy is-buy is-buy)
-    (list amount amount amount amount amount amount amount amount amount amount)
+
+;; Get beta and outcomes
+(define-read-only (get-b-and-ocs (event-id uint) (outcome-ids (list 10 uint)))
+  (let
+    (
+      (event (unwrap-panic (get-event event-id)))
+      (beta (get beta event))
+      (ocs (map
+        get-outcome
+        (list event-id event-id event-id event-id event-id event-id event-id event-id event-id event-id)
+        outcome-ids
+      ))
+    )
+    { beta: beta, ocs: ocs }
   )
+)
+
+;; Get current share cost for each event outcome
+(define-read-only (get-share-costs (event-id uint))
+  (let
+    (
+      (event (unwrap-panic (get-event event-id)))
+      (beta (get beta event))
+      (qqbs (get-qqbs event-id beta))
+      (sum-exp (get-sum-exp qqbs))
+    )
+    (map
+      get-share-cost
+      (list sum-exp sum-exp sum-exp sum-exp sum-exp sum-exp sum-exp sum-exp sum-exp sum-exp)
+      qqbs
+    )
+  )
+)
+
+;; ---------------------------------------------------------
+;; Perform helpers
+;; ---------------------------------------------------------
+
+(define-private (transfer (amount uint) (sender principal) (recipient principal) (memo (optional (buff 34))))
+  (contract-call? (var-get token-contract) transfer amount sender recipient memo)
+)
+
+(define-private (check-err (result (response bool uint)) (prior (response bool uint)))
+  (match prior ok-value result err-value (err err-value))
 )
 
 ;; ---------------------------------------------------------
@@ -395,7 +529,7 @@ ERR-AMOUNT-TOO-LOW
                                     (if (<= x u21000000) u21000000
                                       u30000000)))))))))))))))))
 
-(define-private (exp (x uint))
+(define-read-only (exp (x uint))
   (let ((lower-x (get-exp-lower x))
         (upper-x (get-exp-upper x))
         (lower-val (get value (unwrap-panic (map-get? exp-lookup { x: lower-x }))))
@@ -474,7 +608,7 @@ ERR-AMOUNT-TOO-LOW
                                     (if (<= x u1000000000000) u1000000000000
                                       u10000000000000)))))))))))))))))))
 
-(define-private (ln (x uint))
+(define-read-only (ln (x uint))
   (let ((lower-x (get-ln-lower x))
         (upper-x (get-ln-upper x))
         (lower-val (get value (unwrap-panic (map-get? ln-lookup { x: lower-x }))))
