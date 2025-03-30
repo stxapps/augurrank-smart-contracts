@@ -1,13 +1,26 @@
 (define-constant ERR-UNAUTHORIZED (err u801))
-(define-constant ERR-EVENT-NOT-FOUND (err u802)) ;; check is in use
-(define-constant ERR-EVENT-NOT-OPENED (err u803))
-(define-constant ERR-EVENT-NOT-RESOLVED (err u804))
-(define-constant ERR-WIN-OUTCOME-NOT-FOUND (err u805))
-(define-constant ERR-INVALID-AMOUNT (err u806))
-(define-constant ERR-INVALID-COST (err u807))
-(define-constant ERR-COST-TOO-HIGH (err u808))
-(define-constant ERR-BALANCE-TOO-LOW (err u809))
-(define-constant ERR-AMOUNT-TOO-LOW (err u810))
+
+(define-constant ERR-EVENT-NOT-FOUND (err u811))
+(define-constant ERR-OUTCOME-NOT-FOUND (err u812))
+(define-constant ERR-USER-NOT-FOUND (err u813))
+(define-constant ERR-BALANCE-NOT-FOUND (err u814))
+(define-constant ERR-WIN-OUTCOME-NOT-FOUND (err u815))
+(define-constant ERR-QQB-NOT-FOUND (err u816))
+
+(define-constant ERR-INVALID-OUTCOME-ID (err u821))
+(define-constant ERR-INVALID-WIN-OUTCOME-ID (err u822))
+(define-constant ERR-INVALID-AMOUNT (err u823))
+(define-constant ERR-INVALID-COST (err u824))
+(define-constant ERR-INVALID-BALANCE (err u825))
+
+(define-constant ERR-EVENT-NOT-OPENED (err u831))
+(define-constant ERR-EVENT-NOT-RESOLVED (err u832))
+(define-constant ERR-EVENT-NOT-CANCELED (err u833))
+
+(define-constant ERR-COST-TOO-HIGH (err u841))
+(define-constant ERR-BALANCE-TOO-LOW (err u842))
+(define-constant ERR-SHARES-TOO-LOW (err u843))
+(define-constant ERR-ALREADY-SETTLED (err u844))
 
 (define-constant SCALE u1000000)
 (define-constant E u2718281) ;; e ≈ 2.718281
@@ -22,8 +35,7 @@
     title: (string-ascii 256),
     desc: (string-ascii 256),
     beta: uint, ;; LMSR sensitivity parameter (scaled)
-    ;; 0: init, 1: opened, 2: closed, 3: resolved, 4: rewarded,
-    ;;   5: paused, 6: disputed, 7: canceled, 8: returned
+    ;; 0: init, 1: opened, 2: closed, 3: resolved, 4: paused, 5: disputed, 6: canceled
     status: uint,
     win-outcome-id: (optional uint)
   }
@@ -43,9 +55,7 @@
   }
 )
 
-
-
-(define-public (create-event (desc (string-ascii 256)) (beta uint) (outcome-descs (list 10 (string-ascii 128))))
+(define-public (create-event (title (string-ascii 256)) (desc (string-ascii 256)) (beta uint) (status uint) (win-outcome-id (optional uint)) (outcomes (list 10 { desc: string-ascii 128, share-amount: uint })))
   (let
     (
       (event-id (var-get next-event-id))
@@ -54,36 +64,23 @@
     (map-insert
        events
        { event-id: event-id }
-       { desc: desc, resolved: false, resolution-time: none, beta: beta }
+       { title: title, desc: desc, beta: beta, status: status, win-outcome-id: win-outcome-id }
     )
-    ;;(map set-outcome outcome-descs event-id) ;;wrong?
+    (map
+      insert-outcome
+      (list event-id event-id event-id event-id event-id event-id event-id event-id event-id event-id)
+      (list u0 u1 u2 u3 u4 u5 u6 u7 u8 u9)
+      outcomes
+    )
     (var-set next-event-id (+ event-id u1))
     (ok event-id)
   )
 )
 
-;; Helper to set initial outcomes
-(define-private (set-outcome (desc (string-ascii 128)) (event-id uint))
-  (let
-    (
-      (outcome-id (len (filter (lambda (k) (is-some (map-get? outcomes { event-id: event-id, outcome-id: k }))) (list u0 u1 u2 u3 u4 u5 u6 u7 u8 u9))))
-    )
-    (map-insert
-      outcomes
-      { event-id: event-id, outcome-id: outcome-id }
-      { desc: desc, total-shares: u0, winning: none }
-    )
-  )
-)
-
-;;
-;; should always fix to 10 choices/outcomes? should specify when create an event?
-;;
-
 (define-public (set-event-beta (event-id uint) (n-beta uint))
   (let
     (
-      (event (unwrap-panic (get-event event-id)))
+      (event (unwrap! (get-event event-id) ERR-EVENT-NOT-FOUND))
     )
     (asserts! (is-eq tx-sender contract-owner) ERR-UNAUTHORIZED)
     (map-set events { event-id: event-id }
@@ -96,15 +93,12 @@
 (define-public (set-event-status (event-id uint) (n-status uint) (win-outcome-id (optional uint)))
   (let
     (
-      (event (unwrap-panic (get-event event-id)))
+      (event (unwrap! (get-event event-id) ERR-EVENT-NOT-FOUND))
     )
     (asserts! (is-eq tx-sender contract-owner) ERR-UNAUTHORIZED)
-    (asserts! (or (not (is-eq n-status u3)) (is-some win-outcome-id)) ERR-WIN-OUTCOME-NOT-FOUND)
+    (asserts! (or (not (is-eq n-status u3)) (is-some win-outcome-id)) ERR-INVALID-WIN-OUTCOME-ID)
     (map-set events { event-id: event-id }
-      (if (is-eq n-status 3)
-        (merge event { status: n-status, win-outcome-id: win-outcome-id })
-        (merge event { status: n-status })
-      )
+      (merge event { status: n-status, win-outcome-id: win-outcome-id })
     )
     (ok true)
   )
@@ -113,16 +107,16 @@
 (define-public (buy-shares (event-id uint) (outcome-id uint) (amount uint))
   (let
     (
-      (event (unwrap-panic (get-event event-id)))
+      (event (unwrap! (get-event event-id) ERR-EVENT-NOT-FOUND))
       (beta (get beta event))
       (qqbs (get-qqbs event-id beta))
       (cost (get-delta-cost beta qqbs outcome-id true amount))
-      (outcome (unwrap-panic (get-outcome event-id outcome-id)))
+      (outcome (unwrap! (get-outcome event-id outcome-id) ERR-OUTCOME-NOT-FOUND))
       (user (default-to
         { share-amount: u0 }
         (get-user event-id outcome-id tx-sender)
       ))
-      (balance (unwrap-panic (get-balance tx-sender)))
+      (balance (unwrap! (get-balance tx-sender) ERR-BALANCE-NOT-FOUND))
     )
     (asserts! (is-eq (get status event) 1) ERR-EVENT-NOT-OPENED)
     (asserts! (is-amount-valid amount) ERR-INVALID-AMOUNT)
@@ -142,17 +136,17 @@
 (define-public (buy-amap-shares (event-id uint) (outcome-id uint) (max-cost uint))
   (let
     (
-      (event (unwrap-panic (get-event event-id)))
+      (event (unwrap! (get-event event-id) ERR-EVENT-NOT-FOUND))
       (beta (get beta event))
       (qqbs (get-qqbs event-id beta))
       (amount (get-delta-amount beta qqbs outcome-id max-cost))
       (cost (get-delta-cost beta qqbs outcome-id true amount))
-      (outcome (unwrap-panic (get-outcome event-id outcome-id)))
+      (outcome (unwrap! (get-outcome event-id outcome-id) ERR-OUTCOME-NOT-FOUND))
       (user (default-to
         { share-amount: u0 }
         (get-user event-id outcome-id tx-sender)
       ))
-      (balance (unwrap-panic (get-balance tx-sender)))
+      (balance (unwrap! (get-balance tx-sender) ERR-BALANCE-NOT-FOUND))
     )
     (asserts! (is-eq (get status event) 1) ERR-EVENT-NOT-OPENED)
     (asserts! (is-amount-valid amount) ERR-INVALID-AMOUNT)
@@ -173,17 +167,17 @@
 (define-public (sell-shares (event-id uint) (outcome-id uint) (amount uint))
   (let
     (
-      (event (unwrap-panic (get-event event-id)))
+      (event (unwrap! (get-event event-id) ERR-EVENT-NOT-FOUND))
       (beta (get beta event))
       (qqbs (get-qqbs event-id beta))
       (cost (get-delta-cost beta qqbs outcome-id false amount))
-      (outcome (unwrap-panic (get-outcome event-id outcome-id)))
-      (user (unwrap-panic (get-user event-id outcome-id tx-sender)))
+      (outcome (unwrap! (get-outcome event-id outcome-id) ERR-OUTCOME-NOT-FOUND))
+      (user (unwrap! (get-user event-id outcome-id tx-sender) ERR-USER-NOT-FOUND))
     )
     (asserts! (is-eq (get status event) 1) ERR-EVENT-NOT-OPENED)
     (asserts! (is-amount-valid amount) ERR-INVALID-AMOUNT)
     (asserts! (> cost u0) ERR-INVALID-COST)
-    (asserts! (<= amount (get share-amount user)) ERR-AMOUNT-TOO-LOW)
+    (asserts! (<= amount (get share-amount user)) ERR-SHARES-TOO-LOW)
     (try! (transfer cost contract-owner tx-sender none))
     (map-set outcomes { event-id: event-id, outcome-id: outcome-id }
       (merge outcome { share-amount: (- (get share-amount outcome) amount) })
@@ -198,15 +192,15 @@
 (define-pubilc (claim-reward (event-id uint))
   (let
     (
-      (event (unwrap-panic (get-event event-id)))
+      (event (unwrap! (get-event event-id) ERR-EVENT-NOT-FOUND))
       (status (get status event))
-      (win-outcome-id (unwrap-panic (get win-outcome-id event)))
-      (user (unwrap-panic (get-user event-id win-outcome-id tx-sender)))
+      (win-outcome-id (unwrap! (get win-outcome-id event) ERR-WIN-OUTCOME-NOT-FOUND))
+      (user (unwrap! (get-user event-id win-outcome-id tx-sender) ERR-USER-NOT-FOUND))
       (amount (get share-amount user))
       (is-settled (get is-settled user))
     )
     (asserts! (is-eq status 3) ERR-EVENT-NOT-RESOLVED)
-    (asserts! (is-eq is-settled false) ERR-)
+    (asserts! (is-eq is-settled false) ERR-ALREADY-SETTLED)
     (try! (transfer amount contract-owner tx-sender none))
     (map-set users { event-id: event-id, outcome-id: win-outcome-id, user-id: tx-sender }
       (merge user { is-settled: true })
@@ -215,42 +209,73 @@
   )
 )
 
-(define-private (pay-reward (winner { event-id: uint, outcome-id: uint, user-id: principal}))
+(define-public (pay-reward (winner { event-id: uint, user-id: principal}))
   (let
     (
       (event-id (get event-id winner))
-      (outcome-id (get outcome-id winner))
       (user-id (get user-id winner))
-      (event (unwrap-panic (get-event event-id)))
+      (event (unwrap! (get-event event-id) ERR-EVENT-NOT-FOUND))
       (status (get status event))
-      (win-outcome-id (unwrap-panic (get win-outcome-id event)))
-      (user (unwrap-panic (get-user event-id win-outcome-id tx-sender)))
+      (win-outcome-id (unwrap! (get win-outcome-id event) ERR-WIN-OUTCOME-NOT-FOUND))
+      (user (unwrap! (get-user event-id win-outcome-id tx-sender) ERR-USER-NOT-FOUND))
       (amount (get share-amount user))
       (is-settled (get is-settled user))
     )
     (asserts! (is-eq status 3) ERR-EVENT-NOT-RESOLVED)
-    (asserts! (is-eq is-settled false) ERR-)
+    (asserts! (is-eq is-settled false) ERR-ALREADY-SETTLED)
     (try! (transfer amount contract-owner user-id none))
     (map-set users { event-id: event-id, outcome-id: win-outcome-id, user-id: user-id }
       (merge user { is-settled: true })
     )
+    (ok { reward: amount })
   )
 )
-(define-public (pay-rewards (winners (list 200 { event-id: uint, outcome-id: uint, user-id: principal })))
-  (begin
-    (asserts! (is-eq tx-sender contract-owner) ERR-UNAUTHORIZED)
-    (fold check-err (map pay-reward winners) (ok true))
+(define-public (pay-rewards (winners (list 200 { event-id: uint, user-id: principal })))
+  (fold check-err (map pay-reward winners) (ok true))
+)
+
+(define-pubilc (claim-refund (event-id uint) (outcome-id uint))
+  (let
+    (
+      (event (unwrap! (get-event event-id) ERR-EVENT-NOT-FOUND))
+      (status (get status event))
+      (user (unwrap! (get-user event-id outcome-id tx-sender) ERR-USER-NOT-FOUND))
+      (amount (get share-amount user))
+      (is-settled (get is-settled user))
+    )
+    (asserts! (is-eq status 6) ERR-EVENT-NOT-CANCELED)
+    (asserts! (is-eq is-settled false) ERR-ALREADY-SETTLED)
+    (try! (transfer amount contract-owner tx-sender none))
+    (map-set users { event-id: event-id, outcome-id: outcome-id, user-id: tx-sender }
+      (merge user { is-settled: true })
+    )
+    (ok { fund: amount })
   )
 )
 
-(define-private (refund-fund (user { event-id: uint, outcome-id: uint, user-id: principal}))
-
+(define-public (refund-fund (user { event-id: uint, outcome-id: uint, user-id: principal}))
+  (let
+    (
+      (event-id (get event-id user))
+      (outcome-id (get outcome-id user))
+      (user-id (get user-id user))
+      (event (unwrap! (get-event event-id) ERR-EVENT-NOT-FOUND))
+      (status (get status event))
+      (user (unwrap! (get-user event-id outcome-id user-id) ERR-USER-NOT-FOUND))
+      (amount (get share-amount user))
+      (is-settled (get is-settled user))
+    )
+    (asserts! (is-eq status 6) ERR-EVENT-NOT-CANCELED)
+    (asserts! (is-eq is-settled false) ERR-ALREADY-SETTLED)
+    (try! (transfer amount contract-owner user-id none))
+    (map-set users { event-id: event-id, outcome-id: outcome-id, user-id: user-id }
+      (merge user { is-settled: true })
+    )
+    (ok { fund: amount })
+  )
 )
 (define-public (refund-funds (users (list 200 { event-id: uint, outcome-id: uint, user-id: principal })))
-  (begin
-    (asserts! (is-eq tx-sender contract-owner) ERR-UNAUTHORIZED)
-    (fold check-err (map refund-fund users) (ok true))
-  )
+  (fold check-err (map refund-fund users) (ok true))
 )
 
 (define-public (set-token-contract (new-contract principal))
@@ -303,7 +328,7 @@
   (let
     (
       (sum-exp (get-sum-exp qqbs))
-      (qqb (unwrap-panic (element-at? qqbs id)))
+      (qqb (unwrap! (element-at? qqbs id) ERR-QQB-NOT-FOUND))
       (qk (get q qqb))
       (qkb (get qb qqb))
       (exp-qkb (exp qkb))
@@ -406,12 +431,12 @@
   (let
     (
       (c-qqbs (map get-new-qqb qqbs))
-      (qqb (unwrap-panic (element-at? c-qqbs id)))
+      (qqb (unwrap! (element-at? c-qqbs id) ERR-QQB-NOT-FOUND))
       (q (get q qqb))
       (n-q (if is-buy (+ q amount) (if (> q amount) (- q amount) u0)))
       (n-qqb { id: id, q: n-q, qb: (/ (* n-q SCALE) beta) })
     )
-    (unwrap-panic (replace-at? c-qqbs id n-qqb))
+    (unwrap! (replace-at? c-qqbs id n-qqb) ERR-QQB-NOT-FOUND)
   )
 )
 
@@ -419,7 +444,7 @@
 (define-read-only (get-b-and-ocs (event-id uint) (outcome-ids (list 10 uint)))
   (let
     (
-      (event (unwrap-panic (get-event event-id)))
+      (event (unwrap! (get-event event-id) ERR-EVENT-NOT-FOUND))
       (beta (get beta event))
       (ocs (map
         get-outcome
@@ -435,7 +460,7 @@
 (define-read-only (get-share-costs (event-id uint))
   (let
     (
-      (event (unwrap-panic (get-event event-id)))
+      (event (unwrap! (get-event event-id) ERR-EVENT-NOT-FOUND))
       (beta (get beta event))
       (qqbs (get-qqbs event-id beta))
       (sum-exp (get-sum-exp qqbs))
@@ -451,6 +476,17 @@
 ;; ---------------------------------------------------------
 ;; Perform helpers
 ;; ---------------------------------------------------------
+
+(define-private (insert-outcome (event-id uint) (outcome-id uint) (outcome { desc: (string-ascii 128), share-amount: uint }))
+  (map-insert
+    outcomes
+    { event-id: event-id, outcome-id: outcome-id }
+    {
+      desc: (get desc outcome),
+      total-shares: (get share-amount outcome)
+    }
+  )
+)
 
 (define-private (transfer (amount uint) (sender principal) (recipient principal) (memo (optional (buff 34))))
   (contract-call? (var-get token-contract) transfer amount sender recipient memo)
