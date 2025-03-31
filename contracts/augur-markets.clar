@@ -562,11 +562,19 @@
                                       u30000000)))))))))))))))))))
 
 (define-read-only (exp (x uint))
-  (let ((lower-x (get-exp-lower x))
-        (upper-x (get-exp-upper x))
-        (lower-val (get value (unwrap-panic (map-get? exp-lookup { x: lower-x }))))
-        (upper-val (get value (unwrap-panic (map-get? exp-lookup { x: upper-x })))))
-    (+ lower-val (/ (* (- upper-val lower-val) (- x lower-x)) (- upper-x lower-x)))
+  (let
+    (
+      (lower-x (get-exp-lower x))
+      (upper-x (get-exp-upper x))
+      (lower-val (get value (unwrap-panic (map-get? exp-lookup { x: lower-x }))))
+      (upper-val (get value (unwrap-panic (map-get? exp-lookup { x: upper-x }))))
+      (diff-x (- upper-x lower-x))
+      (val (if (is-eq diff-x u0)
+        u0
+        (/ (* (- upper-val lower-val) (- x lower-x)) diff-x)
+      ))
+    )
+    (+ lower-val val)
   )
 )
 
@@ -641,10 +649,18 @@
                                       u10000000000000)))))))))))))))))))
 
 (define-read-only (ln (x uint))
-  (let ((lower-x (get-ln-lower x))
-        (upper-x (get-ln-upper x))
-        (lower-val (get value (unwrap-panic (map-get? ln-lookup { x: lower-x }))))
-        (upper-val (get value (unwrap-panic (map-get? ln-lookup { x: upper-x })))))
-    (+ lower-val (/ (* (- upper-val lower-val) (- x lower-x)) (- upper-x lower-x)))
+  (let
+    (
+      (lower-x (get-ln-lower x))
+      (upper-x (get-ln-upper x))
+      (lower-val (get value (unwrap-panic (map-get? ln-lookup { x: lower-x }))))
+      (upper-val (get value (unwrap-panic (map-get? ln-lookup { x: upper-x }))))
+      (diff-x (- upper-x lower-x))
+      (val (if (is-eq diff-x u0)
+        u0
+        (/ (* (- upper-val lower-val) (- x lower-x)) diff-x)
+      ))
+    )
+    (+ lower-val val)
   )
 )
