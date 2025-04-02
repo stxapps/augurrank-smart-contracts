@@ -306,8 +306,8 @@
       (cost-before (get-cost beta qqbs))
       (cost-after (get-cost beta n-qqbs))
     )
-    (if (<= cost-after cost-before)
-      u0
+    (if (< cost-after cost-before)
+      (- cost-before cost-after)
       (- cost-after cost-before)
     )
   )
@@ -411,10 +411,13 @@
       (f-outcomes (filter is-some-outcome r-outcomes))
       (u-outcomes (map unwrap-panic-outcome f-outcomes))
     )
-    (map get-qqb
-      (list u0 u1 u2 u3 u4 u5 u6 u7 u8 u9)
-      u-outcomes
-      (list beta beta beta beta beta beta beta beta beta beta)
+    (if (is-eq (len u-outcomes) u0)
+      (list)
+      (map get-qqb
+        (list u0 u1 u2 u3 u4 u5 u6 u7 u8 u9)
+        u-outcomes
+        (list beta beta beta beta beta beta beta beta beta beta)
+      )
     )
   )
 )
@@ -603,29 +606,36 @@
   (map-insert ln-lookup { x: u100000000000 } { value: u11512925 }) ;; ln(100000)
   (map-insert ln-lookup { x: u1000000000000 } { value: u13815511 }) ;; ln(1000000)
   (map-insert ln-lookup { x: u10000000000000 } { value: u16118095 }) ;; ln(10000000)
-                            ;;106864745815240000 <- max from e^30 * 10 outcomes
+  (map-insert ln-lookup { x: u200000000000000 } { value: u19113827 }) ;; ln(200000000)
+  (map-insert ln-lookup { x: u3000000000000000 } { value: u21821878 }) ;; ln(3x10^9)
+  (map-insert ln-lookup { x: u40000000000000000 } { value: u24412145 }) ;; ln(4x10^10)
+  (map-insert ln-lookup { x: u500000000000000000 } { value: u26937873 }) ;; ln(5x10^11)
 )
 
 (define-read-only (get-ln-lower (x uint))
-  (if (>= x u10000000000000) u10000000000000
-    (if (>= x u1000000000000) u1000000000000
-      (if (>= x u100000000000) u100000000000
-        (if (>= x u10000000000) u10000000000
-          (if (>= x u1000000000) u1000000000
-            (if (>= x u500000000) u500000000
-              (if (>= x u300000000) u300000000
-                (if (>= x u200000000) u200000000
-                  (if (>= x u100000000) u100000000
-                    (if (>= x u50000000) u50000000
-                      (if (>= x u30000000) u30000000
-                        (if (>= x u20000000) u20000000
-                          (if (>= x u15000000) u15000000
-                            (if (>= x u10000000) u10000000
-                              (if (>= x u5000000) u5000000
-                                (if (>= x u4000000) u4000000
-                                  (if (>= x u3000000) u300000
-                                    (if (>= x u2000000) u2000000
-                                      u1000000)))))))))))))))))))
+  (if (>= x u500000000000000000) u500000000000000000
+    (if (>= x u40000000000000000) u40000000000000000
+      (if (>= x u3000000000000000) u3000000000000000
+        (if (>= x u200000000000000) u200000000000000
+          (if (>= x u10000000000000) u10000000000000
+            (if (>= x u1000000000000) u1000000000000
+              (if (>= x u100000000000) u100000000000
+                (if (>= x u10000000000) u10000000000
+                  (if (>= x u1000000000) u1000000000
+                    (if (>= x u500000000) u500000000
+                      (if (>= x u300000000) u300000000
+                        (if (>= x u200000000) u200000000
+                          (if (>= x u100000000) u100000000
+                            (if (>= x u50000000) u50000000
+                              (if (>= x u30000000) u30000000
+                                (if (>= x u20000000) u20000000
+                                  (if (>= x u15000000) u15000000
+                                    (if (>= x u10000000) u10000000
+                                      (if (>= x u5000000) u5000000
+                                        (if (>= x u4000000) u4000000
+                                          (if (>= x u3000000) u300000
+                                            (if (>= x u2000000) u2000000
+                                              u1000000)))))))))))))))))))))))
 
 (define-read-only (get-ln-upper (x uint))
   (if (<= x u1000000) u1000000
@@ -646,7 +656,11 @@
                                 (if (<= x u10000000000) u10000000000
                                   (if (<= x u100000000000) u100000000000
                                     (if (<= x u1000000000000) u1000000000000
-                                      u10000000000000)))))))))))))))))))
+                                      (if (<= x u10000000000000) u10000000000000
+                                        (if (<= x u200000000000000) u200000000000000
+                                          (if (<= x u3000000000000000) u3000000000000000
+                                            (if (<= x u40000000000000000) u40000000000000000
+                                              u500000000000000000)))))))))))))))))))))))
 
 (define-read-only (ln (x uint))
   (let
