@@ -6,20 +6,19 @@
 (define-constant ERR-BALANCE-NOT-FOUND (err u814))
 (define-constant ERR-WIN-OUTCOME-NOT-FOUND (err u815))
 
-(define-constant ERR-INVALID-OUTCOME-ID (err u821))
-(define-constant ERR-INVALID-WIN-OUTCOME-ID (err u822))
-(define-constant ERR-INVALID-AMOUNT (err u823))
-(define-constant ERR-INVALID-COST (err u824))
-(define-constant ERR-INVALID-BALANCE (err u825))
+(define-constant ERR-INVALID-WIN-OUTCOME-ID (err u821))
+(define-constant ERR-INVALID-AMOUNT (err u822))
+(define-constant ERR-INVALID-COST (err u823))
 
 (define-constant ERR-EVENT-NOT-OPENED (err u831))
 (define-constant ERR-EVENT-NOT-RESOLVED (err u832))
 (define-constant ERR-EVENT-NOT-CANCELED (err u833))
 
 (define-constant ERR-COST-TOO-HIGH (err u841))
-(define-constant ERR-BALANCE-TOO-LOW (err u842))
-(define-constant ERR-SHARES-TOO-LOW (err u843))
-(define-constant ERR-ALREADY-SETTLED (err u844))
+(define-constant ERR-COST-TOO-LOW (err u842))
+(define-constant ERR-BALANCE-TOO-LOW (err u843))
+(define-constant ERR-SHARES-TOO-LOW (err u844))
+(define-constant ERR-ALREADY-SETTLED (err u845))
 
 (define-constant SCALE u1000000)
 (define-constant E u2718281) ;; e ~ 2.718281
@@ -102,88 +101,164 @@
   )
 )
 
-(define-public (buy-shares (event-id uint) (outcome-id uint) (amount uint))
+(define-public (buy-shares-a (event-id uint) (outcome-id uint) (amt1 uint) (max-cost uint))
   (let
     (
       (event (unwrap! (get-event event-id) ERR-EVENT-NOT-FOUND))
       (beta (get beta event))
       (qqbs (get-qqbs event-id beta))
-      (cost (get-delta-cost beta qqbs outcome-id true amount))
-      (outcome (unwrap! (get-outcome event-id outcome-id) ERR-OUTCOME-NOT-FOUND))
-      (user (default-to
-        { share-amount: u0, is-settled: false }
-        (get-user event-id outcome-id tx-sender)
-      ))
-      (balance (unwrap! (get-balance tx-sender) ERR-BALANCE-NOT-FOUND))
+      (cost1 (get-delta-cost beta qqbs outcome-id true amt1))
     )
     (asserts! (is-eq (get status event) u1) ERR-EVENT-NOT-OPENED)
-    (asserts! (is-amount-valid amount) ERR-INVALID-AMOUNT)
-    (asserts! (> cost u0) ERR-INVALID-COST)
-    (asserts! (<= cost balance) ERR-BALANCE-TOO-LOW)
-    (try! (transfer cost tx-sender contract-owner none))
-    (map-set outcomes { event-id: event-id, outcome-id: outcome-id }
-      (merge outcome { share-amount: (+ (get share-amount outcome) amount) })
+    (asserts! (is-amount-valid amt1) ERR-INVALID-AMOUNT)
+    (asserts! (> cost1 u0) ERR-INVALID-COST)
+    (if (<= cost1 max-cost)
+      (buy-shares event-id outcome-id amt1 cost1)
+      ERR-COST-TOO-HIGH
     )
-    (map-set users { event-id: event-id, outcome-id: outcome-id, user-id: tx-sender }
-      (merge user { share-amount: (+ (get share-amount user) amount) })
+  )
+)
+(define-public (buy-shares-b (event-id uint) (outcome-id uint) (amt1 uint) (amt2 uint) (max-cost uint))
+  (let
+    (
+      (event (unwrap! (get-event event-id) ERR-EVENT-NOT-FOUND))
+      (beta (get beta event))
+      (qqbs (get-qqbs event-id beta))
+      (cost1 (get-delta-cost beta qqbs outcome-id true amt1))
     )
-    (ok { cost: cost })
+    (asserts! (is-eq (get status event) u1) ERR-EVENT-NOT-OPENED)
+    (asserts! (is-amount-valid amt1) ERR-INVALID-AMOUNT)
+    (asserts! (> cost1 u0) ERR-INVALID-COST)
+    (if (<= cost1 max-cost)
+      (buy-shares event-id outcome-id amt1 cost1)
+      (let
+        (
+          (cost2 (get-delta-cost beta qqbs outcome-id true amt2))
+        )
+        (asserts! (is-amount-valid amt2) ERR-INVALID-AMOUNT)
+        (asserts! (> cost2 u0) ERR-INVALID-COST)
+        (if (<= cost2 max-cost)
+          (buy-shares event-id outcome-id amt2 cost2)
+          ERR-COST-TOO-HIGH
+        )
+      )
+    )
+  )
+)
+(define-public (buy-shares-c (event-id uint) (outcome-id uint) (amt1 uint) (amt2 uint) (amt3 uint) (max-cost uint))
+  (let
+    (
+      (event (unwrap! (get-event event-id) ERR-EVENT-NOT-FOUND))
+      (beta (get beta event))
+      (qqbs (get-qqbs event-id beta))
+      (cost1 (get-delta-cost beta qqbs outcome-id true amt1))
+    )
+    (asserts! (is-eq (get status event) u1) ERR-EVENT-NOT-OPENED)
+    (asserts! (is-amount-valid amt1) ERR-INVALID-AMOUNT)
+    (asserts! (> cost1 u0) ERR-INVALID-COST)
+    (if (<= cost1 max-cost)
+      (buy-shares event-id outcome-id amt1 cost1)
+      (let
+        (
+          (cost2 (get-delta-cost beta qqbs outcome-id true amt2))
+        )
+        (asserts! (is-amount-valid amt2) ERR-INVALID-AMOUNT)
+        (asserts! (> cost2 u0) ERR-INVALID-COST)
+        (if (<= cost2 max-cost)
+          (buy-shares event-id outcome-id amt2 cost2)
+          (let
+            (
+              (cost3 (get-delta-cost beta qqbs outcome-id true amt3))
+            )
+            (asserts! (is-amount-valid amt3) ERR-INVALID-AMOUNT)
+            (asserts! (> cost3 u0) ERR-INVALID-COST)
+            (if (<= cost2 max-cost)
+              (buy-shares event-id outcome-id amt3 cost3)
+              ERR-COST-TOO-HIGH
+            )
+          )
+        )
+      )
+    )
   )
 )
 
-(define-public (buy-amap-shares (event-id uint) (outcome-id uint) (max-cost uint))
+(define-public (sell-shares-a (event-id uint) (outcome-id uint) (amt1 uint) (min-cost uint))
   (let
     (
       (event (unwrap! (get-event event-id) ERR-EVENT-NOT-FOUND))
       (beta (get beta event))
       (qqbs (get-qqbs event-id beta))
-      (amount (get-delta-amount beta qqbs outcome-id max-cost))
-      (cost (get-delta-cost beta qqbs outcome-id true amount))
-      (outcome (unwrap! (get-outcome event-id outcome-id) ERR-OUTCOME-NOT-FOUND))
-      (user (default-to
-        { share-amount: u0, is-settled: false }
-        (get-user event-id outcome-id tx-sender)
-      ))
-      (balance (unwrap! (get-balance tx-sender) ERR-BALANCE-NOT-FOUND))
+      (cost1 (get-delta-cost beta qqbs outcome-id false amt1))
     )
     (asserts! (is-eq (get status event) u1) ERR-EVENT-NOT-OPENED)
-    (asserts! (is-amount-valid amount) ERR-INVALID-AMOUNT)
-    (asserts! (> cost u0) ERR-INVALID-COST)
-    (asserts! (<= cost max-cost) ERR-COST-TOO-HIGH)
-    (asserts! (<= cost balance) ERR-BALANCE-TOO-LOW)
-    (try! (transfer cost tx-sender contract-owner none))
-    (map-set outcomes { event-id: event-id, outcome-id: outcome-id }
-      (merge outcome { share-amount: (+ (get share-amount outcome) amount) })
+    (asserts! (is-amount-valid amt1) ERR-INVALID-AMOUNT)
+    (asserts! (> cost1 u0) ERR-INVALID-COST)
+    (if (>= cost1 min-cost)
+      (sell-shares event-id outcome-id amt1 cost1)
+      ERR-COST-TOO-LOW
     )
-    (map-set users { event-id: event-id, outcome-id: outcome-id, user-id: tx-sender }
-      (merge user { share-amount: (+ (get share-amount user) amount) })
-    )
-    (ok { amount: amount, cost: cost })
   )
 )
-
-(define-public (sell-shares (event-id uint) (outcome-id uint) (amount uint))
+(define-public (sell-shares-b (event-id uint) (outcome-id uint) (amt1 uint) (amt2 uint) (min-cost uint))
   (let
     (
       (event (unwrap! (get-event event-id) ERR-EVENT-NOT-FOUND))
       (beta (get beta event))
       (qqbs (get-qqbs event-id beta))
-      (cost (get-delta-cost beta qqbs outcome-id false amount))
-      (outcome (unwrap! (get-outcome event-id outcome-id) ERR-OUTCOME-NOT-FOUND))
-      (user (unwrap! (get-user event-id outcome-id tx-sender) ERR-USER-NOT-FOUND))
+      (cost1 (get-delta-cost beta qqbs outcome-id false amt1))
     )
     (asserts! (is-eq (get status event) u1) ERR-EVENT-NOT-OPENED)
-    (asserts! (is-amount-valid amount) ERR-INVALID-AMOUNT)
-    (asserts! (> cost u0) ERR-INVALID-COST)
-    (asserts! (<= amount (get share-amount user)) ERR-SHARES-TOO-LOW)
-    (try! (transfer cost contract-owner tx-sender none))
-    (map-set outcomes { event-id: event-id, outcome-id: outcome-id }
-      (merge outcome { share-amount: (- (get share-amount outcome) amount) })
+    (asserts! (is-amount-valid amt1) ERR-INVALID-AMOUNT)
+    (asserts! (> cost1 u0) ERR-INVALID-COST)
+    (if (>= cost1 min-cost)
+      (sell-shares event-id outcome-id amt1 cost1)
+      (let
+        (
+          (cost2 (get-delta-cost beta qqbs outcome-id false amt2))
+        )
+        (asserts! (> cost2 u0) ERR-INVALID-COST)
+        (if (>= cost2 min-cost)
+          (sell-shares event-id outcome-id amt2 cost2)
+          ERR-COST-TOO-LOW
+        )
+      )
     )
-    (map-set users { event-id: event-id, outcome-id: outcome-id, user-id: tx-sender }
-      (merge user { share-amount: (- (get share-amount user) amount) })
+  )
+)
+(define-public (sell-shares-c (event-id uint) (outcome-id uint) (amt1 uint) (amt2 uint) (amt3 uint) (min-cost uint))
+  (let
+    (
+      (event (unwrap! (get-event event-id) ERR-EVENT-NOT-FOUND))
+      (beta (get beta event))
+      (qqbs (get-qqbs event-id beta))
+      (cost1 (get-delta-cost beta qqbs outcome-id false amt1))
     )
-    (ok { cost: cost })
+    (asserts! (is-eq (get status event) u1) ERR-EVENT-NOT-OPENED)
+    (asserts! (is-amount-valid amt1) ERR-INVALID-AMOUNT)
+    (asserts! (> cost1 u0) ERR-INVALID-COST)
+    (if (>= cost1 min-cost)
+      (sell-shares event-id outcome-id amt1 cost1)
+      (let
+        (
+          (cost2 (get-delta-cost beta qqbs outcome-id false amt2))
+        )
+        (asserts! (> cost2 u0) ERR-INVALID-COST)
+        (if (>= cost2 min-cost)
+          (sell-shares event-id outcome-id amt2 cost2)
+          (let
+            (
+              (cost3 (get-delta-cost beta qqbs outcome-id false amt3))
+            )
+            (asserts! (> cost3 u0) ERR-INVALID-COST)
+            (if (>= cost3 min-cost)
+              (sell-shares event-id outcome-id amt3 cost3)
+              ERR-COST-TOO-LOW
+            )
+          )
+        )
+      )
+    )
   )
 )
 
@@ -309,34 +384,6 @@
     (if (< cost-after cost-before)
       (- cost-before cost-after)
       (- cost-after cost-before)
-    )
-  )
-)
-
-;; delta_Q = b * ln(S * e^(C / b) - S + e^(q_k / b)) - q_k, S = sum(e^(q_i / b))
-(define-read-only (get-delta-amount (beta uint) (qqbs (list 10 { id: uint, q: uint, qb: uint })) (id uint) (max-cost uint))
-  (let
-    (
-      (sum-exp (get-sum-exp qqbs))
-      (qqb (unwrap-panic (element-at? qqbs id)))
-      (qk (get q qqb))
-      (qkb (get qb qqb))
-      (exp-qkb (exp qkb))
-      (exp-cb (exp (/ (* max-cost SCALE) beta)))
-      (i-term (- (+ (/ (* sum-exp exp-cb) SCALE) exp-qkb) sum-exp))
-    )
-    (if (< i-term u1)
-      u0
-      (let
-        (
-          (l-term (ln i-term))
-          (n-qk (/ (* beta l-term) SCALE))
-        )
-        (if (<= n-qk qk)
-          u0
-          (* (/ (- n-qk qk) SCALE) SCALE) ;; whole shares, no frac
-        )
-      )
     )
   )
 )
@@ -475,6 +522,46 @@
 ;; ---------------------------------------------------------
 ;; Perform helpers
 ;; ---------------------------------------------------------
+
+(define-private (buy-shares (event-id uint) (outcome-id uint) (amount uint) (cost uint))
+  (let
+    (
+      (outcome (unwrap! (get-outcome event-id outcome-id) ERR-OUTCOME-NOT-FOUND))
+      (user (default-to
+        { share-amount: u0, is-settled: false }
+        (get-user event-id outcome-id tx-sender)
+      ))
+      (balance (unwrap! (get-balance tx-sender) ERR-BALANCE-NOT-FOUND))
+    )
+    (asserts! (<= cost balance) ERR-BALANCE-TOO-LOW)
+    (try! (transfer cost tx-sender contract-owner none))
+    (map-set outcomes { event-id: event-id, outcome-id: outcome-id }
+      (merge outcome { share-amount: (+ (get share-amount outcome) amount) })
+    )
+    (map-set users { event-id: event-id, outcome-id: outcome-id, user-id: tx-sender }
+      (merge user { share-amount: (+ (get share-amount user) amount) })
+    )
+    (ok { cost: cost })
+  )
+)
+
+(define-private (sell-shares (event-id uint) (outcome-id uint) (amount uint) (cost uint))
+  (let
+    (
+      (outcome (unwrap! (get-outcome event-id outcome-id) ERR-OUTCOME-NOT-FOUND))
+      (user (unwrap! (get-user event-id outcome-id tx-sender) ERR-USER-NOT-FOUND))
+    )
+    (asserts! (<= amount (get share-amount user)) ERR-SHARES-TOO-LOW)
+    (try! (transfer cost contract-owner tx-sender none))
+    (map-set outcomes { event-id: event-id, outcome-id: outcome-id }
+      (merge outcome { share-amount: (- (get share-amount outcome) amount) })
+    )
+    (map-set users { event-id: event-id, outcome-id: outcome-id, user-id: tx-sender }
+      (merge user { share-amount: (- (get share-amount user) amount) })
+    )
+    (ok { cost: cost })
+  )
+)
 
 (define-private (insert-outcome (event-id uint) (outcome-id uint) (outcome { desc: (string-ascii 128), share-amount: uint }))
   (map-insert
