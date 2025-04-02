@@ -217,6 +217,7 @@
         (
           (cost2 (get-delta-cost beta qqbs outcome-id false amt2))
         )
+        (asserts! (is-amount-valid amt2) ERR-INVALID-AMOUNT)
         (asserts! (> cost2 u0) ERR-INVALID-COST)
         (if (>= cost2 min-cost)
           (sell-shares event-id outcome-id amt2 cost2)
@@ -243,6 +244,7 @@
         (
           (cost2 (get-delta-cost beta qqbs outcome-id false amt2))
         )
+        (asserts! (is-amount-valid amt2) ERR-INVALID-AMOUNT)
         (asserts! (> cost2 u0) ERR-INVALID-COST)
         (if (>= cost2 min-cost)
           (sell-shares event-id outcome-id amt2 cost2)
@@ -250,6 +252,7 @@
             (
               (cost3 (get-delta-cost beta qqbs outcome-id false amt3))
             )
+            (asserts! (is-amount-valid amt3) ERR-INVALID-AMOUNT)
             (asserts! (> cost3 u0) ERR-INVALID-COST)
             (if (>= cost3 min-cost)
               (sell-shares event-id outcome-id amt3 cost3)
@@ -273,6 +276,7 @@
       (is-settled (get is-settled user))
     )
     (asserts! (is-eq status u3) ERR-EVENT-NOT-RESOLVED)
+    (asserts! (> amount u0) ERR-INVALID-AMOUNT)
     (asserts! (is-eq is-settled false) ERR-ALREADY-SETTLED)
     (try! (transfer amount contract-owner tx-sender none))
     (map-set users { event-id: event-id, outcome-id: win-outcome-id, user-id: tx-sender }
@@ -295,6 +299,7 @@
       (is-settled (get is-settled user))
     )
     (asserts! (is-eq status u3) ERR-EVENT-NOT-RESOLVED)
+    (asserts! (> amount u0) ERR-INVALID-AMOUNT)
     (asserts! (is-eq is-settled false) ERR-ALREADY-SETTLED)
     (try! (transfer amount contract-owner user-id none))
     (map-set users { event-id: event-id, outcome-id: win-outcome-id, user-id: user-id }
@@ -317,6 +322,7 @@
       (is-settled (get is-settled user))
     )
     (asserts! (is-eq status u6) ERR-EVENT-NOT-CANCELED)
+    (asserts! (> amount u0) ERR-INVALID-AMOUNT)
     (asserts! (is-eq is-settled false) ERR-ALREADY-SETTLED)
     (try! (transfer amount contract-owner tx-sender none))
     (map-set users { event-id: event-id, outcome-id: outcome-id, user-id: tx-sender }
@@ -339,6 +345,7 @@
       (is-settled (get is-settled user))
     )
     (asserts! (is-eq status u6) ERR-EVENT-NOT-CANCELED)
+    (asserts! (> amount u0) ERR-INVALID-AMOUNT)
     (asserts! (is-eq is-settled false) ERR-ALREADY-SETTLED)
     (try! (transfer amount contract-owner user-id none))
     (map-set users { event-id: event-id, outcome-id: outcome-id, user-id: user-id }
