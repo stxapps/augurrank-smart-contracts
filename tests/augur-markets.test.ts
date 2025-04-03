@@ -43,6 +43,11 @@ it('event', () => {
   res = simnet.callPublicFn('augur-markets', 'set-event-beta', arg1, wallet1);
   expect(res.result).toBeErr(Cl.uint(801));
 
+  arg1 = [Cl.uint(2), Cl.uint(400000000)];  
+  res = simnet.callPublicFn('augur-markets', 'set-event-beta', arg1, deployer);
+  expect(res.result).toBeErr(Cl.uint(811));
+
+  arg1 = [Cl.uint(0), Cl.uint(400000000)];
   res = simnet.callPublicFn('augur-markets', 'set-event-beta', arg1, deployer);
   expect(res.result).toBeOk(Cl.bool(true));
 
@@ -54,6 +59,11 @@ it('event', () => {
   res = simnet.callPublicFn('augur-markets', 'set-event-status', arg1, wallet1);
   expect(res.result).toBeErr(Cl.uint(801));
 
+  arg1 = [Cl.uint(2), Cl.uint(1), Cl.none()];
+  res = simnet.callPublicFn('augur-markets', 'set-event-status', arg1, deployer);
+  expect(res.result).toBeErr(Cl.uint(811));
+
+  arg1 = [Cl.uint(0), Cl.uint(1), Cl.none()];
   res = simnet.callPublicFn('augur-markets', 'set-event-status', arg1, deployer);
   expect(res.result).toBeOk(Cl.bool(true));
 
@@ -252,23 +262,8 @@ it('event', () => {
   expect(res.result).toBeErr(Cl.uint(813));
 });
 
-it('rewards', () => {
+const init = () => {
   let res, arg1;
-
-  arg1 = [
-    Cl.stringAscii('Will Stacks be ok?'),
-    Cl.stringAscii(''),
-    Cl.uint(300000000),
-    Cl.uint(1),
-    Cl.none(),
-    Cl.list([
-      Cl.tuple({ desc: Cl.stringAscii('Yes'), 'share-amount': Cl.uint(0) }),
-      Cl.tuple({ desc: Cl.stringAscii('No'), 'share-amount': Cl.uint(0) }),
-      Cl.tuple({ desc: Cl.stringAscii('Not sure'), 'share-amount': Cl.uint(0) }),
-    ]),
-  ];
-  res = simnet.callPublicFn('augur-markets', 'create-event', arg1, deployer);
-  expect(res.result).toBeOk(Cl.uint(0));
 
   arg1 = [Cl.uint(1000000000000), Cl.principal(deployer), Cl.none()];
   res = simnet.callPublicFn('augur-token', 'mint', arg1, deployer);
@@ -293,6 +288,27 @@ it('rewards', () => {
     deployer
   );
   expect(res.result).toBeOk(Cl.bool(true));
+};
+
+it('rewards', () => {
+  let res, arg1;
+
+  init();
+
+  arg1 = [
+    Cl.stringAscii('Will Stacks be ok?'),
+    Cl.stringAscii(''),
+    Cl.uint(300000000),
+    Cl.uint(1),
+    Cl.none(),
+    Cl.list([
+      Cl.tuple({ desc: Cl.stringAscii('Yes'), 'share-amount': Cl.uint(0) }),
+      Cl.tuple({ desc: Cl.stringAscii('No'), 'share-amount': Cl.uint(0) }),
+      Cl.tuple({ desc: Cl.stringAscii('Not sure'), 'share-amount': Cl.uint(0) }),
+    ]),
+  ];
+  res = simnet.callPublicFn('augur-markets', 'create-event', arg1, deployer);
+  expect(res.result).toBeOk(Cl.uint(0));
 
   arg1 = [Cl.uint(0), Cl.uint(0), Cl.uint(100000000), Cl.uint(100000000)];
   res = simnet.callPublicFn('augur-markets', 'buy-shares-a', arg1, wallet1);
@@ -332,11 +348,162 @@ it('rewards', () => {
   res = simnet.callPublicFn('augur-markets', 'pay-rewards', [arg1], wallet1);
   expect(res.result).toBeOk(Cl.bool(true));
 
+  res = simnet.callPublicFn('augur-markets', 'pay-rewards', [arg1], wallet1);
+  expect(res.result).toBeErr(Cl.uint(845));
 
+  arg1 = [Cl.uint(0), Cl.uint(3), Cl.some(Cl.uint(0))];
+  res = simnet.callPublicFn('augur-markets', 'set-event-status', arg1, deployer);
+  expect(res.result).toBeOk(Cl.bool(true));
 
+  arg1 = Cl.list([
+    Cl.tuple({ 'event-id': Cl.uint(0), 'user-id': Cl.principal(wallet1) }),
+    Cl.tuple({ 'event-id': Cl.uint(0), 'user-id': Cl.principal(wallet2) }),
+  ]);
+  res = simnet.callPublicFn('augur-markets', 'pay-rewards', [arg1], wallet1);
+  expect(res.result).toBeOk(Cl.bool(true));
 
+  res = simnet.callPublicFn('augur-markets', 'pay-rewards', [arg1], wallet1);
+  expect(res.result).toBeErr(Cl.uint(845));
+});
 
+it('claim refund', () => {
+  let res, arg1;
 
+  init();
+
+  arg1 = [
+    Cl.stringAscii('Will Stacks be ok?'),
+    Cl.stringAscii(''),
+    Cl.uint(300000000),
+    Cl.uint(1),
+    Cl.none(),
+    Cl.list([
+      Cl.tuple({ desc: Cl.stringAscii('Yes'), 'share-amount': Cl.uint(0) }),
+      Cl.tuple({ desc: Cl.stringAscii('No'), 'share-amount': Cl.uint(0) }),
+      Cl.tuple({ desc: Cl.stringAscii('Not sure'), 'share-amount': Cl.uint(0) }),
+    ]),
+  ];
+  res = simnet.callPublicFn('augur-markets', 'create-event', arg1, deployer);
+  expect(res.result).toBeOk(Cl.uint(0));
+
+  arg1 = [Cl.uint(0), Cl.uint(0), Cl.uint(100000000), Cl.uint(100000000)];
+  res = simnet.callPublicFn('augur-markets', 'buy-shares-a', arg1, wallet1);
+  expect(res.result).toBeOk(Cl.tuple({ cost: Cl.uint(37324200) }));
+
+  arg1 = [Cl.uint(0), Cl.uint(0), Cl.uint(100000000), Cl.uint(100000000)];
+  res = simnet.callPublicFn('augur-markets', 'buy-shares-a', arg1, wallet2);
+  expect(res.result).toBeOk(Cl.tuple({ cost: Cl.uint(49329900) }));
+
+  arg1 = [Cl.uint(0), Cl.uint(2), Cl.uint(1000000000), Cl.uint(1000000000)];
+  res = simnet.callPublicFn('augur-markets', 'buy-shares-a', arg1, wallet3);
+  expect(res.result).toBeOk(Cl.tuple({ cost: Cl.uint(639327300) }));
+
+  arg1 = [Cl.uint(0), Cl.uint(2), Cl.some(Cl.uint(2))];
+  res = simnet.callPublicFn('augur-markets', 'set-event-status', arg1, deployer);
+  expect(res.result).toBeOk(Cl.bool(true));
+
+  arg1 = [Cl.uint(0), Cl.uint(2)];
+  res = simnet.callPublicFn('augur-markets', 'claim-refund', arg1, wallet3);
+  expect(res.result).toBeErr(Cl.uint(833));
+
+  arg1 = [Cl.uint(0), Cl.uint(6), Cl.none()];
+  res = simnet.callPublicFn('augur-markets', 'set-event-status', arg1, deployer);
+  expect(res.result).toBeOk(Cl.bool(true));
+
+  arg1 = [Cl.uint(0), Cl.uint(2)];
+  res = simnet.callPublicFn('augur-markets', 'claim-refund', arg1, wallet3);
+  expect(res.result).toBeOk(Cl.tuple({ fund: Cl.uint(1000000000) }));
+
+  arg1 = [Cl.uint(0), Cl.uint(2)];
+  res = simnet.callPublicFn('augur-markets', 'claim-refund', arg1, wallet1);
+  expect(res.result).toBeErr(Cl.uint(813));
+
+  arg1 = [Cl.uint(2), Cl.uint(0)];
+  res = simnet.callPublicFn('augur-markets', 'claim-refund', arg1, wallet1);
+  expect(res.result).toBeErr(Cl.uint(811));
+
+  arg1 = [Cl.uint(0), Cl.uint(0)];
+  res = simnet.callPublicFn('augur-markets', 'claim-refund', arg1, wallet1);
+  expect(res.result).toBeOk(Cl.tuple({ fund: Cl.uint(100000000) }));
+
+  res = simnet.callPublicFn('augur-markets', 'claim-refund', arg1, wallet1);
+  expect(res.result).toBeErr(Cl.uint(845));
+});
+
+it('refund', () => {
+  let res, arg1;
+
+  init();
+
+  arg1 = [
+    Cl.stringAscii('Will Stacks be ok?'),
+    Cl.stringAscii(''),
+    Cl.uint(300000000),
+    Cl.uint(1),
+    Cl.none(),
+    Cl.list([
+      Cl.tuple({ desc: Cl.stringAscii('Yes'), 'share-amount': Cl.uint(0) }),
+      Cl.tuple({ desc: Cl.stringAscii('No'), 'share-amount': Cl.uint(0) }),
+      Cl.tuple({ desc: Cl.stringAscii('Not sure'), 'share-amount': Cl.uint(0) }),
+    ]),
+  ];
+  res = simnet.callPublicFn('augur-markets', 'create-event', arg1, deployer);
+  expect(res.result).toBeOk(Cl.uint(0));
+
+  arg1 = [Cl.uint(0), Cl.uint(0), Cl.uint(100000000), Cl.uint(100000000)];
+  res = simnet.callPublicFn('augur-markets', 'buy-shares-a', arg1, wallet1);
+  expect(res.result).toBeOk(Cl.tuple({ cost: Cl.uint(37324200) }));
+
+  arg1 = [Cl.uint(0), Cl.uint(0), Cl.uint(100000000), Cl.uint(100000000)];
+  res = simnet.callPublicFn('augur-markets', 'buy-shares-a', arg1, wallet2);
+  expect(res.result).toBeOk(Cl.tuple({ cost: Cl.uint(49329900) }));
+
+  arg1 = [Cl.uint(0), Cl.uint(2), Cl.uint(1000000000), Cl.uint(1000000000)];
+  res = simnet.callPublicFn('augur-markets', 'buy-shares-a', arg1, wallet3);
+  expect(res.result).toBeOk(Cl.tuple({ cost: Cl.uint(639327300) }));
+
+  arg1 = [Cl.uint(0), Cl.uint(2), Cl.some(Cl.uint(2))];
+  res = simnet.callPublicFn('augur-markets', 'set-event-status', arg1, deployer);
+  expect(res.result).toBeOk(Cl.bool(true));
+
+  arg1 = Cl.list([
+    Cl.tuple({ 'event-id': Cl.uint(0), 'outcome-id': Cl.uint(2), 'user-id': Cl.principal(wallet3) }),
+  ]);
+  res = simnet.callPublicFn('augur-markets', 'refund-funds', [arg1], wallet1);
+  expect(res.result).toBeErr(Cl.uint(833));
+
+  arg1 = [Cl.uint(0), Cl.uint(6), Cl.none()];
+  res = simnet.callPublicFn('augur-markets', 'set-event-status', arg1, deployer);
+  expect(res.result).toBeOk(Cl.bool(true));
+
+  arg1 = Cl.list([
+    Cl.tuple({ 'event-id': Cl.uint(0), 'outcome-id': Cl.uint(2), 'user-id': Cl.principal(wallet1) }),
+  ]);
+  res = simnet.callPublicFn('augur-markets', 'refund-funds', [arg1], wallet1);
+  expect(res.result).toBeErr(Cl.uint(813));
+
+  arg1 = Cl.list([
+    Cl.tuple({ 'event-id': Cl.uint(0), 'outcome-id': Cl.uint(2), 'user-id': Cl.principal(wallet3) }),
+  ]);
+  res = simnet.callPublicFn('augur-markets', 'refund-funds', [arg1], wallet1);
+  expect(res.result).toBeOk(Cl.bool(true));
+
+  res = simnet.callPublicFn('augur-markets', 'refund-funds', [arg1], wallet1);
+  expect(res.result).toBeErr(Cl.uint(845));
+
+  arg1 = [Cl.uint(0), Cl.uint(6), Cl.some(Cl.uint(0))];
+  res = simnet.callPublicFn('augur-markets', 'set-event-status', arg1, deployer);
+  expect(res.result).toBeOk(Cl.bool(true));
+
+  arg1 = Cl.list([
+    Cl.tuple({ 'event-id': Cl.uint(0), 'outcome-id': Cl.uint(0), 'user-id': Cl.principal(wallet1) }),
+    Cl.tuple({ 'event-id': Cl.uint(0), 'outcome-id': Cl.uint(0), 'user-id': Cl.principal(wallet2) }),
+  ]);
+  res = simnet.callPublicFn('augur-markets', 'refund-funds', [arg1], wallet1);
+  expect(res.result).toBeOk(Cl.bool(true));
+
+  res = simnet.callPublicFn('augur-markets', 'refund-funds', [arg1], wallet1);
+  expect(res.result).toBeErr(Cl.uint(845));
 });
 
 it('no event', () => {
