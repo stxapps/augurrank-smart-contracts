@@ -7,7 +7,6 @@
   "private": true,
   "scripts": {
     "test": "vitest run",
-    "test:markets": "vitest markets",
     "test:report": "vitest run -- --coverage --costs",
     "test:watch": "chokidar \"tests/**/*.ts\" \"contracts/**/*.clar\" -c \"npm run test:report\""
   },
