@@ -2,8 +2,8 @@
 
 (define-fungible-token augur-token)
 
-(define-constant ERR-UNAUTHORIZED (err u100))
-(define-constant ERR-ONLY-MARKETS (err u101))
+(define-constant ERR-UNAUTHORIZED (err u801))
+(define-constant ERR-ONLY-MARKETS (err u802))
 
 (define-constant contract-owner tx-sender)
 (define-data-var markets-contract principal tx-sender)
