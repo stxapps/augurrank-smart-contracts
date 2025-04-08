@@ -6,20 +6,18 @@
 (define-constant ERR-BALANCE-NOT-FOUND (err u814))
 (define-constant ERR-WIN-OUTCOME-NOT-FOUND (err u815))
 
-(define-constant ERR-INVALID-OUTCOME-ID (err u821))
-(define-constant ERR-INVALID-WIN-OUTCOME-ID (err u822))
-(define-constant ERR-INVALID-AMOUNT (err u823))
-(define-constant ERR-INVALID-COST (err u824))
-(define-constant ERR-INVALID-BALANCE (err u825))
+(define-constant ERR-INVALID-WIN-OUTCOME-ID (err u821))
+(define-constant ERR-INVALID-AMOUNT (err u822))
 
 (define-constant ERR-EVENT-NOT-OPENED (err u831))
 (define-constant ERR-EVENT-NOT-RESOLVED (err u832))
 (define-constant ERR-EVENT-NOT-CANCELED (err u833))
 
 (define-constant ERR-COST-TOO-HIGH (err u841))
-(define-constant ERR-BALANCE-TOO-LOW (err u842))
-(define-constant ERR-SHARES-TOO-LOW (err u843))
-(define-constant ERR-ALREADY-SETTLED (err u844))
+(define-constant ERR-COST-TOO-LOW (err u842))
+(define-constant ERR-BALANCE-TOO-LOW (err u843))
+(define-constant ERR-SHARES-TOO-LOW (err u844))
+(define-constant ERR-ALREADY-SETTLED (err u845))
 
 (define-constant SCALE u1000000)
 (define-constant E u2718281) ;; e ~ 2.718281
@@ -102,88 +100,155 @@
   )
 )
 
-(define-public (buy-shares (event-id uint) (outcome-id uint) (amount uint))
+(define-public (buy-shares-a (event-id uint) (outcome-id uint) (amt1 uint) (max-cost uint))
   (let
     (
       (event (unwrap! (get-event event-id) ERR-EVENT-NOT-FOUND))
       (beta (get beta event))
       (qqbs (get-qqbs event-id beta))
-      (cost (get-delta-cost beta qqbs outcome-id true amount))
-      (outcome (unwrap! (get-outcome event-id outcome-id) ERR-OUTCOME-NOT-FOUND))
-      (user (default-to
-        { share-amount: u0, is-settled: false }
-        (get-user event-id outcome-id tx-sender)
-      ))
-      (balance (unwrap! (get-balance tx-sender) ERR-BALANCE-NOT-FOUND))
+      (cost1 (get-delta-cost beta qqbs outcome-id true amt1))
     )
     (asserts! (is-eq (get status event) u1) ERR-EVENT-NOT-OPENED)
-    (asserts! (is-amount-valid amount) ERR-INVALID-AMOUNT)
-    (asserts! (> cost u0) ERR-INVALID-COST)
-    (asserts! (<= cost balance) ERR-BALANCE-TOO-LOW)
-    (try! (transfer cost tx-sender contract-owner none))
-    (map-set outcomes { event-id: event-id, outcome-id: outcome-id }
-      (merge outcome { share-amount: (+ (get share-amount outcome) amount) })
+    (asserts! (is-amount-valid amt1) ERR-INVALID-AMOUNT)
+    (if (<= cost1 max-cost)
+      (buy-shares event-id outcome-id amt1 cost1)
+      ERR-COST-TOO-HIGH
     )
-    (map-set users { event-id: event-id, outcome-id: outcome-id, user-id: tx-sender }
-      (merge user { share-amount: (+ (get share-amount user) amount) })
+  )
+)
+(define-public (buy-shares-b (event-id uint) (outcome-id uint) (amt1 uint) (amt2 uint) (max-cost uint))
+  (let
+    (
+      (event (unwrap! (get-event event-id) ERR-EVENT-NOT-FOUND))
+      (beta (get beta event))
+      (qqbs (get-qqbs event-id beta))
+      (cost1 (get-delta-cost beta qqbs outcome-id true amt1))
     )
-    (ok { cost: cost })
+    (asserts! (is-eq (get status event) u1) ERR-EVENT-NOT-OPENED)
+    (asserts! (is-amount-valid amt1) ERR-INVALID-AMOUNT)
+    (if (<= cost1 max-cost)
+      (buy-shares event-id outcome-id amt1 cost1)
+      (let
+        (
+          (cost2 (get-delta-cost beta qqbs outcome-id true amt2))
+        )
+        (asserts! (is-amount-valid amt2) ERR-INVALID-AMOUNT)
+        (if (<= cost2 max-cost)
+          (buy-shares event-id outcome-id amt2 cost2)
+          ERR-COST-TOO-HIGH
+        )
+      )
+    )
+  )
+)
+(define-public (buy-shares-c (event-id uint) (outcome-id uint) (amt1 uint) (amt2 uint) (amt3 uint) (max-cost uint))
+  (let
+    (
+      (event (unwrap! (get-event event-id) ERR-EVENT-NOT-FOUND))
+      (beta (get beta event))
+      (qqbs (get-qqbs event-id beta))
+      (cost1 (get-delta-cost beta qqbs outcome-id true amt1))
+    )
+    (asserts! (is-eq (get status event) u1) ERR-EVENT-NOT-OPENED)
+    (asserts! (is-amount-valid amt1) ERR-INVALID-AMOUNT)
+    (if (<= cost1 max-cost)
+      (buy-shares event-id outcome-id amt1 cost1)
+      (let
+        (
+          (cost2 (get-delta-cost beta qqbs outcome-id true amt2))
+        )
+        (asserts! (is-amount-valid amt2) ERR-INVALID-AMOUNT)
+        (if (<= cost2 max-cost)
+          (buy-shares event-id outcome-id amt2 cost2)
+          (let
+            (
+              (cost3 (get-delta-cost beta qqbs outcome-id true amt3))
+            )
+            (asserts! (is-amount-valid amt3) ERR-INVALID-AMOUNT)
+            (if (<= cost3 max-cost)
+              (buy-shares event-id outcome-id amt3 cost3)
+              ERR-COST-TOO-HIGH
+            )
+          )
+        )
+      )
+    )
   )
 )
 
-(define-public (buy-amap-shares (event-id uint) (outcome-id uint) (max-cost uint))
+(define-public (sell-shares-a (event-id uint) (outcome-id uint) (amt1 uint) (min-cost uint))
   (let
     (
       (event (unwrap! (get-event event-id) ERR-EVENT-NOT-FOUND))
       (beta (get beta event))
       (qqbs (get-qqbs event-id beta))
-      (amount (get-delta-amount beta qqbs outcome-id max-cost))
-      (cost (get-delta-cost beta qqbs outcome-id true amount))
-      (outcome (unwrap! (get-outcome event-id outcome-id) ERR-OUTCOME-NOT-FOUND))
-      (user (default-to
-        { share-amount: u0, is-settled: false }
-        (get-user event-id outcome-id tx-sender)
-      ))
-      (balance (unwrap! (get-balance tx-sender) ERR-BALANCE-NOT-FOUND))
+      (cost1 (get-delta-cost beta qqbs outcome-id false amt1))
     )
     (asserts! (is-eq (get status event) u1) ERR-EVENT-NOT-OPENED)
-    (asserts! (is-amount-valid amount) ERR-INVALID-AMOUNT)
-    (asserts! (> cost u0) ERR-INVALID-COST)
-    (asserts! (<= cost max-cost) ERR-COST-TOO-HIGH)
-    (asserts! (<= cost balance) ERR-BALANCE-TOO-LOW)
-    (try! (transfer cost tx-sender contract-owner none))
-    (map-set outcomes { event-id: event-id, outcome-id: outcome-id }
-      (merge outcome { share-amount: (+ (get share-amount outcome) amount) })
+    (asserts! (is-amount-valid amt1) ERR-INVALID-AMOUNT)
+    (if (>= cost1 min-cost)
+      (sell-shares event-id outcome-id amt1 cost1)
+      ERR-COST-TOO-LOW
     )
-    (map-set users { event-id: event-id, outcome-id: outcome-id, user-id: tx-sender }
-      (merge user { share-amount: (+ (get share-amount user) amount) })
-    )
-    (ok { amount: amount, cost: cost })
   )
 )
-
-(define-public (sell-shares (event-id uint) (outcome-id uint) (amount uint))
+(define-public (sell-shares-b (event-id uint) (outcome-id uint) (amt1 uint) (amt2 uint) (min-cost uint))
   (let
     (
       (event (unwrap! (get-event event-id) ERR-EVENT-NOT-FOUND))
       (beta (get beta event))
       (qqbs (get-qqbs event-id beta))
-      (cost (get-delta-cost beta qqbs outcome-id false amount))
-      (outcome (unwrap! (get-outcome event-id outcome-id) ERR-OUTCOME-NOT-FOUND))
-      (user (unwrap! (get-user event-id outcome-id tx-sender) ERR-USER-NOT-FOUND))
+      (cost1 (get-delta-cost beta qqbs outcome-id false amt1))
     )
     (asserts! (is-eq (get status event) u1) ERR-EVENT-NOT-OPENED)
-    (asserts! (is-amount-valid amount) ERR-INVALID-AMOUNT)
-    (asserts! (> cost u0) ERR-INVALID-COST)
-    (asserts! (<= amount (get share-amount user)) ERR-SHARES-TOO-LOW)
-    (try! (transfer cost contract-owner tx-sender none))
-    (map-set outcomes { event-id: event-id, outcome-id: outcome-id }
-      (merge outcome { share-amount: (- (get share-amount outcome) amount) })
+    (asserts! (is-amount-valid amt1) ERR-INVALID-AMOUNT)
+    (if (>= cost1 min-cost)
+      (sell-shares event-id outcome-id amt1 cost1)
+      (let
+        (
+          (cost2 (get-delta-cost beta qqbs outcome-id false amt2))
+        )
+        (asserts! (is-amount-valid amt2) ERR-INVALID-AMOUNT)
+        (if (>= cost2 min-cost)
+          (sell-shares event-id outcome-id amt2 cost2)
+          ERR-COST-TOO-LOW
+        )
+      )
     )
-    (map-set users { event-id: event-id, outcome-id: outcome-id, user-id: tx-sender }
-      (merge user { share-amount: (- (get share-amount user) amount) })
+  )
+)
+(define-public (sell-shares-c (event-id uint) (outcome-id uint) (amt1 uint) (amt2 uint) (amt3 uint) (min-cost uint))
+  (let
+    (
+      (event (unwrap! (get-event event-id) ERR-EVENT-NOT-FOUND))
+      (beta (get beta event))
+      (qqbs (get-qqbs event-id beta))
+      (cost1 (get-delta-cost beta qqbs outcome-id false amt1))
     )
-    (ok { cost: cost })
+    (asserts! (is-eq (get status event) u1) ERR-EVENT-NOT-OPENED)
+    (asserts! (is-amount-valid amt1) ERR-INVALID-AMOUNT)
+    (if (>= cost1 min-cost)
+      (sell-shares event-id outcome-id amt1 cost1)
+      (let
+        (
+          (cost2 (get-delta-cost beta qqbs outcome-id false amt2))
+        )
+        (asserts! (is-amount-valid amt2) ERR-INVALID-AMOUNT)
+        (if (>= cost2 min-cost)
+          (sell-shares event-id outcome-id amt2 cost2)
+          (let
+            (
+              (cost3 (get-delta-cost beta qqbs outcome-id false amt3))
+            )
+            (asserts! (is-amount-valid amt3) ERR-INVALID-AMOUNT)
+            (if (>= cost3 min-cost)
+              (sell-shares event-id outcome-id amt3 cost3)
+              ERR-COST-TOO-LOW
+            )
+          )
+        )
+      )
+    )
   )
 )
 
@@ -198,6 +263,7 @@
       (is-settled (get is-settled user))
     )
     (asserts! (is-eq status u3) ERR-EVENT-NOT-RESOLVED)
+    (asserts! (> amount u0) ERR-INVALID-AMOUNT)
     (asserts! (is-eq is-settled false) ERR-ALREADY-SETTLED)
     (try! (transfer amount contract-owner tx-sender none))
     (map-set users { event-id: event-id, outcome-id: win-outcome-id, user-id: tx-sender }
@@ -220,6 +286,7 @@
       (is-settled (get is-settled user))
     )
     (asserts! (is-eq status u3) ERR-EVENT-NOT-RESOLVED)
+    (asserts! (> amount u0) ERR-INVALID-AMOUNT)
     (asserts! (is-eq is-settled false) ERR-ALREADY-SETTLED)
     (try! (transfer amount contract-owner user-id none))
     (map-set users { event-id: event-id, outcome-id: win-outcome-id, user-id: user-id }
@@ -242,6 +309,7 @@
       (is-settled (get is-settled user))
     )
     (asserts! (is-eq status u6) ERR-EVENT-NOT-CANCELED)
+    (asserts! (> amount u0) ERR-INVALID-AMOUNT)
     (asserts! (is-eq is-settled false) ERR-ALREADY-SETTLED)
     (try! (transfer amount contract-owner tx-sender none))
     (map-set users { event-id: event-id, outcome-id: outcome-id, user-id: tx-sender }
@@ -264,6 +332,7 @@
       (is-settled (get is-settled user))
     )
     (asserts! (is-eq status u6) ERR-EVENT-NOT-CANCELED)
+    (asserts! (> amount u0) ERR-INVALID-AMOUNT)
     (asserts! (is-eq is-settled false) ERR-ALREADY-SETTLED)
     (try! (transfer amount contract-owner user-id none))
     (map-set users { event-id: event-id, outcome-id: outcome-id, user-id: user-id }
@@ -305,39 +374,12 @@
       (n-qqbs (get-new-qqbs beta qqbs id is-buy amount))
       (cost-before (get-cost beta qqbs))
       (cost-after (get-cost beta n-qqbs))
+      (delta-cost (if (< cost-after cost-before)
+        (- cost-before cost-after)
+        (- cost-after cost-before)
+      ))
     )
-    (if (<= cost-after cost-before)
-      u0
-      (- cost-after cost-before)
-    )
-  )
-)
-
-;; delta_Q = b * ln(S * e^(C / b) - S + e^(q_k / b)) - q_k, S = sum(e^(q_i / b))
-(define-read-only (get-delta-amount (beta uint) (qqbs (list 10 { id: uint, q: uint, qb: uint })) (id uint) (max-cost uint))
-  (let
-    (
-      (sum-exp (get-sum-exp qqbs))
-      (qqb (unwrap-panic (element-at? qqbs id)))
-      (qk (get q qqb))
-      (qkb (get qb qqb))
-      (exp-qkb (exp qkb))
-      (exp-cb (exp (/ (* max-cost SCALE) beta)))
-      (i-term (- (+ (/ (* sum-exp exp-cb) SCALE) exp-qkb) sum-exp))
-    )
-    (if (< i-term u1)
-      u0
-      (let
-        (
-          (l-term (ln i-term))
-          (n-qk (/ (* beta l-term) SCALE))
-        )
-        (if (<= n-qk qk)
-          u0
-          (* (/ (- n-qk qk) SCALE) SCALE) ;; whole shares, no frac
-        )
-      )
-    )
+    (if (> delta-cost amount) amount delta-cost)
   )
 )
 
@@ -411,10 +453,13 @@
       (f-outcomes (filter is-some-outcome r-outcomes))
       (u-outcomes (map unwrap-panic-outcome f-outcomes))
     )
-    (map get-qqb
-      (list u0 u1 u2 u3 u4 u5 u6 u7 u8 u9)
-      u-outcomes
-      (list beta beta beta beta beta beta beta beta beta beta)
+    (if (is-eq (len u-outcomes) u0)
+      (list)
+      (map get-qqb
+        (list u0 u1 u2 u3 u4 u5 u6 u7 u8 u9)
+        u-outcomes
+        (list beta beta beta beta beta beta beta beta beta beta)
+      )
     )
   )
 )
@@ -473,6 +518,46 @@
 ;; Perform helpers
 ;; ---------------------------------------------------------
 
+(define-private (buy-shares (event-id uint) (outcome-id uint) (amount uint) (cost uint))
+  (let
+    (
+      (outcome (unwrap! (get-outcome event-id outcome-id) ERR-OUTCOME-NOT-FOUND))
+      (user (default-to
+        { share-amount: u0, is-settled: false }
+        (get-user event-id outcome-id tx-sender)
+      ))
+      (balance (unwrap! (get-balance tx-sender) ERR-BALANCE-NOT-FOUND))
+    )
+    (asserts! (<= cost balance) ERR-BALANCE-TOO-LOW)
+    (try! (transfer cost tx-sender contract-owner none))
+    (map-set outcomes { event-id: event-id, outcome-id: outcome-id }
+      (merge outcome { share-amount: (+ (get share-amount outcome) amount) })
+    )
+    (map-set users { event-id: event-id, outcome-id: outcome-id, user-id: tx-sender }
+      (merge user { share-amount: (+ (get share-amount user) amount) })
+    )
+    (ok { cost: cost })
+  )
+)
+
+(define-private (sell-shares (event-id uint) (outcome-id uint) (amount uint) (cost uint))
+  (let
+    (
+      (outcome (unwrap! (get-outcome event-id outcome-id) ERR-OUTCOME-NOT-FOUND))
+      (user (unwrap! (get-user event-id outcome-id tx-sender) ERR-USER-NOT-FOUND))
+    )
+    (asserts! (<= amount (get share-amount user)) ERR-SHARES-TOO-LOW)
+    (try! (transfer cost contract-owner tx-sender none))
+    (map-set outcomes { event-id: event-id, outcome-id: outcome-id }
+      (merge outcome { share-amount: (- (get share-amount outcome) amount) })
+    )
+    (map-set users { event-id: event-id, outcome-id: outcome-id, user-id: tx-sender }
+      (merge user { share-amount: (- (get share-amount user) amount) })
+    )
+    (ok { cost: cost })
+  )
+)
+
 (define-private (insert-outcome (event-id uint) (outcome-id uint) (outcome { desc: (string-ascii 128), share-amount: uint }))
   (map-insert
     outcomes
@@ -498,47 +583,94 @@
 
 (define-map exp-lookup { x: uint } { value: uint })
 (begin
-  (map-insert exp-lookup { x: u0 } { value: u1000000 }) ;; e^0
-  (map-insert exp-lookup { x: u500000 } { value: u1648721 }) ;; e^0.5
-  (map-insert exp-lookup { x: u1000000 } { value: u2718281 }) ;; e^1
-  (map-insert exp-lookup { x: u1500000 } { value: u4481689 }) ;; e^1.5
-  (map-insert exp-lookup { x: u2000000 } { value: u7389056 }) ;; e^2
-  (map-insert exp-lookup { x: u2500000 } { value: u12182494 }) ;; e^2.5
-  (map-insert exp-lookup { x: u3000000 } { value: u20085536 }) ;; e^3
-  (map-insert exp-lookup { x: u4000000 } { value: u54598150 }) ;; e^4
-  (map-insert exp-lookup { x: u5000000 } { value: u148413159 }) ;; e^5
-  (map-insert exp-lookup { x: u6000000 } { value: u403428793 }) ;; e^6
-  (map-insert exp-lookup { x: u7000000 } { value: u1096633158 }) ;; e^7
-  (map-insert exp-lookup { x: u8000000 } { value: u2980957987 }) ;; e^8
-  (map-insert exp-lookup { x: u9000000 } { value: u8103083928 }) ;; e^9
-  (map-insert exp-lookup { x: u11000000 } { value: u59874141715 }) ;; e^11
-  (map-insert exp-lookup { x: u13000000 } { value: u442413392009 }) ;; e^13
-  (map-insert exp-lookup { x: u15000000 } { value: u3269017372472 }) ;; e^15
-  (map-insert exp-lookup { x: u18000000 } { value: u65699969137434 })  ;; e^18
-  (map-insert exp-lookup { x: u21000000 } { value: u1315011106939008 }) ;; e^21
-  (map-insert exp-lookup { x: u30000000 } { value: u10686474581524000 }) ;; e^30
+  (map-insert exp-lookup { x: u0 } { value: u1000000 })
+  (map-insert exp-lookup { x: u500000 } { value: u1648721 })
+  (map-insert exp-lookup { x: u1000000 } { value: u2718281 })
+  (map-insert exp-lookup { x: u1500000 } { value: u4481689 })
+  (map-insert exp-lookup { x: u2000000 } { value: u7389056 })
+  (map-insert exp-lookup { x: u2500000 } { value: u12182493 })
+  (map-insert exp-lookup { x: u3000000 } { value: u20085536 })
+  (map-insert exp-lookup { x: u3500000 } { value: u33115451 })
+  (map-insert exp-lookup { x: u4000000 } { value: u54598150 })
+  (map-insert exp-lookup { x: u4500000 } { value: u90017131 })
+  (map-insert exp-lookup { x: u5000000 } { value: u148413159 })
+  (map-insert exp-lookup { x: u6000000 } { value: u403428793 })
+  (map-insert exp-lookup { x: u7000000 } { value: u1096633158 })
+  (map-insert exp-lookup { x: u8000000 } { value: u2980957987 })
+  (map-insert exp-lookup { x: u9000000 } { value: u8103083927 })
+  (map-insert exp-lookup { x: u10000000 } { value: u22026465794 })
+  (map-insert exp-lookup { x: u11000000 } { value: u59874141715 })
+  (map-insert exp-lookup { x: u12000000 } { value: u162754791419 })
+  (map-insert exp-lookup { x: u13000000 } { value: u442413392008 })
+  (map-insert exp-lookup { x: u14000000 } { value: u1202604284164 })
+  (map-insert exp-lookup { x: u15000000 } { value: u3269017372472 })
+  (map-insert exp-lookup { x: u16000000 } { value: u8886110520507 })
+  (map-insert exp-lookup { x: u17000000 } { value: u24154952753575 })
+  (map-insert exp-lookup { x: u18000000 } { value: u65659969137330 })
+  (map-insert exp-lookup { x: u19000000 } { value: u178482300963187 })
+  (map-insert exp-lookup { x: u20000000 } { value: u485165195409790 })
+  (map-insert exp-lookup { x: u21000000 } { value: u1318815734483214 })
+  (map-insert exp-lookup { x: u22000000 } { value: u3584912846131592 })
+  (map-insert exp-lookup { x: u23000000 } { value: u9744803446248903 })
+  (map-insert exp-lookup { x: u24000000 } { value: u26489122129843470 })
+  (map-insert exp-lookup { x: u25000000 } { value: u72004899337385880 })
+  (map-insert exp-lookup { x: u25500000 } { value: u118716009132169650 })
+  (map-insert exp-lookup { x: u26000000 } { value: u195729609428838780 })
+  (map-insert exp-lookup { x: u26500000 } { value: u322703570371154850 })
+  (map-insert exp-lookup { x: u27000000 } { value: u532048240601798650 })
+  (map-insert exp-lookup { x: u27500000 } { value: u877199251318764900 })
+  (map-insert exp-lookup { x: u28000000 } { value: u1446257064291475000 })
+  (map-insert exp-lookup { x: u28500000 } { value: u2384474784797677700 })
+  (map-insert exp-lookup { x: u29000000 } { value: u3931334297144042000 })
+  (map-insert exp-lookup { x: u29500000 } { value: u6481674477934320000 })
+  (map-insert exp-lookup { x: u30000000 } { value: u10686474581524463000 })
 )
 
 (define-read-only (get-exp-lower (x uint))
   (if (>= x u30000000) u30000000
-    (if (>= x u21000000) u21000000
-      (if (>= x u18000000) u18000000
-        (if (>= x u15000000) u15000000
-          (if (>= x u13000000) u13000000
-            (if (>= x u11000000) u11000000
+    (if (>= x u29500000) u29500000
+      (if (>= x u29000000) u29000000
+        (if (>= x u28500000) u28500000
+          (if (>= x u28000000) u28000000
+            (if (>= x u27500000) u27500000
+              (if (>= x u27000000) u27000000
+                (if (>= x u26500000) u26500000
+                  (if (>= x u26000000) u26000000
+                    (if (>= x u25500000) u25500000
+                      (if (>= x u25000000) u25000000
+                        (if (>= x u24000000) u24000000
+                          (if (>= x u23000000) u23000000
+                            (if (>= x u22000000) u22000000
+                              (if (>= x u21000000) u21000000
+                                (if (>= x u20000000) u20000000
+                                  (if (>= x u19000000) u19000000
+                                    (if (>= x u18000000) u18000000
+                                      (if (>= x u17000000) u17000000
+                                        (if (>= x u16000000) u16000000
+                                          (get-exp-lower-lower x))))))))))))))))))))))
+
+(define-read-only (get-exp-lower-lower (x uint))
+  (if (>= x u15000000) u15000000
+    (if (>= x u14000000) u14000000
+      (if (>= x u13000000) u13000000
+        (if (>= x u12000000) u12000000
+          (if (>= x u11000000) u11000000
+            (if (>= x u10000000) u10000000
               (if (>= x u9000000) u9000000
                 (if (>= x u8000000) u8000000
                   (if (>= x u7000000) u7000000
                     (if (>= x u6000000) u6000000
                       (if (>= x u5000000) u5000000
-                        (if (>= x u4000000) u4000000
-                          (if (>= x u3000000) u3000000
-                            (if (>= x u2500000) u2500000
-                              (if (>= x u2000000) u2000000
-                                (if (>= x u1500000) u1500000
-                                  (if (>= x u1000000) u1000000
-                                    (if (>= x u500000) u500000
-                                      u0)))))))))))))))))))
+                        (if (>= x u4500000) u4500000
+                          (if (>= x u4000000) u4000000
+                            (if (>= x u3500000) u3500000
+                              (if (>= x u3000000) u3000000
+                                (if (>= x u2500000) u2500000
+                                  (if (>= x u2000000) u2000000
+                                    (if (>= x u1500000) u1500000
+                                      (if (>= x u1000000) u1000000
+                                        (if (>= x u500000) u500000
+                                          u0)))))))))))))))))))))
 
 (define-read-only (get-exp-upper (x uint))
   (if (<= x u0) u0
@@ -548,18 +680,43 @@
           (if (<= x u2000000) u2000000
             (if (<= x u2500000) u2500000
               (if (<= x u3000000) u3000000
-                (if (<= x u4000000) u4000000
-                  (if (<= x u5000000) u5000000
-                    (if (<= x u6000000) u6000000
-                      (if (<= x u7000000) u7000000
-                        (if (<= x u8000000) u8000000
-                          (if (<= x u9000000) u9000000
-                            (if (<= x u11000000) u11000000
-                              (if (<= x u13000000) u13000000
-                                (if (<= x u15000000) u15000000
-                                  (if (<= x u18000000) u18000000
-                                    (if (<= x u21000000) u21000000
-                                      u30000000)))))))))))))))))))
+                (if (<= x u3500000) u3500000
+                  (if (<= x u4000000) u4000000
+                    (if (<= x u4500000) u4500000
+                      (if (<= x u5000000) u5000000
+                        (if (<= x u6000000) u6000000
+                          (if (<= x u7000000) u7000000
+                            (if (<= x u8000000) u8000000
+                              (if (<= x u9000000) u9000000
+                                (if (<= x u10000000) u10000000
+                                  (if (<= x u11000000) u11000000
+                                    (if (<= x u12000000) u12000000
+                                      (if (<= x u13000000) u13000000
+                                        (if (<= x u14000000) u14000000
+                                          (get-exp-upper-upper x))))))))))))))))))))))
+
+(define-read-only (get-exp-upper-upper (x uint))
+  (if (<= x u15000000) u15000000
+    (if (<= x u16000000) u16000000
+      (if (<= x u17000000) u17000000
+        (if (<= x u18000000) u18000000
+          (if (<= x u19000000) u19000000
+            (if (<= x u20000000) u20000000
+              (if (<= x u21000000) u21000000
+                (if (<= x u22000000) u22000000
+                  (if (<= x u23000000) u23000000
+                    (if (<= x u24000000) u24000000
+                      (if (<= x u25000000) u25000000
+                        (if (<= x u25500000) u25500000
+                          (if (<= x u26000000) u26000000
+                            (if (<= x u26500000) u26500000
+                              (if (<= x u27000000) u27000000
+                                (if (<= x u27500000) u27500000
+                                  (if (<= x u28000000) u28000000
+                                    (if (<= x u28500000) u28500000
+                                      (if (<= x u29000000) u29000000
+                                        (if (<= x u29500000) u29500000
+                                          u30000000)))))))))))))))))))))
 
 (define-read-only (exp (x uint))
   (let
@@ -584,69 +741,116 @@
 
 (define-map ln-lookup { x: uint } { value: uint })
 (begin
-  (map-insert ln-lookup { x: u1000000 } { value: u0 }) ;; ln(1)
-  (map-insert ln-lookup { x: u2000000 } { value: u693147 }) ;; ln(2)
-  (map-insert ln-lookup { x: u3000000 } { value: u1098616 }) ;; ln(3)
-  (map-insert ln-lookup { x: u4000000 } { value: u1386294 }) ;; ln(4)
-  (map-insert ln-lookup { x: u5000000 } { value: u1609438 }) ;; ln(5)
-  (map-insert ln-lookup { x: u10000000 } { value: u2302585 }) ;; ln(10)
-  (map-insert ln-lookup { x: u15000000 } { value: u2708050 }) ;; ln(15)
-  (map-insert ln-lookup { x: u20000000 } { value: u2995732 }) ;; ln(20)
-  (map-insert ln-lookup { x: u30000000 } { value: u3401192 }) ;; ln(30)
-  (map-insert ln-lookup { x: u50000000 } { value: u3912023 }) ;; ln(50)
-  (map-insert ln-lookup { x: u100000000 } { value: u4605170 }) ;; ln(100)
-  (map-insert ln-lookup { x: u200000000 } { value: u5298317 }) ;; ln(200)
-  (map-insert ln-lookup { x: u300000000 } { value: u5703777 }) ;; ln(300)
-  (map-insert ln-lookup { x: u500000000 } { value: u6214602 }) ;; ln(500)
-  (map-insert ln-lookup { x: u1000000000 } { value: u6907755 }) ;; ln(1000)
-  (map-insert ln-lookup { x: u10000000000 } { value: u9210340 }) ;; ln(10000)
-  (map-insert ln-lookup { x: u100000000000 } { value: u11512925 }) ;; ln(100000)
-  (map-insert ln-lookup { x: u1000000000000 } { value: u13815511 }) ;; ln(1000000)
-  (map-insert ln-lookup { x: u10000000000000 } { value: u16118095 }) ;; ln(10000000)
-                            ;;106864745815240000 <- max from e^30 * 10 outcomes
+  (map-insert ln-lookup { x: u1000000 } { value: u0 })
+  (map-insert ln-lookup { x: u1612800 } { value: u477971 })
+  (map-insert ln-lookup { x: u2532000 } { value: u929009 })
+  (map-insert ln-lookup { x: u4083200 } { value: u1406880 })
+  (map-insert ln-lookup { x: u6410000 } { value: u1857859 })
+  (map-insert ln-lookup { x: u10334000 } { value: u2335439 })
+  (map-insert ln-lookup { x: u16220000 } { value: u2786245 })
+  (map-insert ln-lookup { x: u26159616 } { value: u3264216 })
+  (map-insert ln-lookup { x: u41069040 } { value: u3715254 })
+  (map-insert ln-lookup { x: u66236147 } { value: u4193226 })
+  (map-insert ln-lookup { x: u103986809 } { value: u4644264 })
+  (map-insert ln-lookup { x: u263294601 } { value: u5573273 })
+  (map-insert ln-lookup { x: u666661929 } { value: u6502283 })
+  (map-insert ln-lookup { x: u1687988006 } { value: u7431292 })
+  (map-insert ln-lookup { x: u4273985632 } { value: u8360302 })
+  (map-insert ln-lookup { x: u10821731622 } { value: u9289311 })
+  (map-insert ln-lookup { x: u27400624468 } { value: u10218321 })
+  (map-insert ln-lookup { x: u69378381154 } { value: u11147330 })
+  (map-insert ln-lookup { x: u175803743074 } { value: u12077123 })
+  (map-insert ln-lookup { x: u445135077462 } { value: u13006133 })
+  (map-insert ln-lookup { x: u1127082016130 } { value: u13935142 })
+  (map-insert ln-lookup { x: u2853771664850 } { value: u14864152 })
+  (map-insert ln-lookup { x: u7225749855410 } { value: u15793161 })
+  (map-insert ln-lookup { x: u18295598633900 } { value: u16722171 })
+  (map-insert ln-lookup { x: u46324455741000 } { value: u17651180 })
+  (map-insert ln-lookup { x: u117293521936000 } { value: u18580190 })
+  (map-insert ln-lookup { x: u296987197543000 } { value: u19509199 })
+  (map-insert ln-lookup { x: u751971584178000 } { value: u20438209 })
+  (map-insert ln-lookup { x: u1903992051140000 } { value: u21367218 })
+  (map-insert ln-lookup { x: u4820907873480000 } { value: u22296228 })
+  (map-insert ln-lookup { x: u12206538735700000 } { value: u23225237 })
+  (map-insert ln-lookup { x: u30906956078700000 } { value: u24154247 })
+  (map-insert ln-lookup { x: u78256412791200000 } { value: u25083256 })
+  (map-insert ln-lookup { x: u198145237187000000 } { value: u26012266 })
+  (map-insert ln-lookup { x: u501703740558000000 } { value: u26941275 })
 )
 
 (define-read-only (get-ln-lower (x uint))
-  (if (>= x u10000000000000) u10000000000000
-    (if (>= x u1000000000000) u1000000000000
-      (if (>= x u100000000000) u100000000000
-        (if (>= x u10000000000) u10000000000
-          (if (>= x u1000000000) u1000000000
-            (if (>= x u500000000) u500000000
-              (if (>= x u300000000) u300000000
-                (if (>= x u200000000) u200000000
-                  (if (>= x u100000000) u100000000
-                    (if (>= x u50000000) u50000000
-                      (if (>= x u30000000) u30000000
-                        (if (>= x u20000000) u20000000
-                          (if (>= x u15000000) u15000000
-                            (if (>= x u10000000) u10000000
-                              (if (>= x u5000000) u5000000
-                                (if (>= x u4000000) u4000000
-                                  (if (>= x u3000000) u300000
-                                    (if (>= x u2000000) u2000000
-                                      u1000000)))))))))))))))))))
+  (if (>= x u501703740558000000) u501703740558000000
+    (if (>= x u198145237187000000) u198145237187000000
+      (if (>= x u78256412791200000) u78256412791200000
+        (if (>= x u30906956078700000) u30906956078700000
+          (if (>= x u12206538735700000) u12206538735700000
+            (if (>= x u4820907873480000) u4820907873480000
+              (if (>= x u1903992051140000) u1903992051140000
+                (if (>= x u751971584178000) u751971584178000
+                  (if (>= x u296987197543000) u296987197543000
+                    (if (>= x u117293521936000) u117293521936000
+                      (if (>= x u46324455741000) u46324455741000
+                        (if (>= x u18295598633900) u18295598633900
+                          (if (>= x u7225749855410) u7225749855410
+                            (if (>= x u2853771664850) u2853771664850
+                              (if (>= x u1127082016130) u1127082016130
+                                (if (>= x u445135077462) u445135077462
+                                  (if (>= x u175803743074) u175803743074
+                                    (if (>= x u69378381154) u69378381154
+                                      (if (>= x u27400624468) u27400624468
+                                        (if (>= x u10821731622) u10821731622
+                                          (if (>= x u4273985632) u4273985632
+                                            (if (>= x u1687988006) u1687988006
+                                              (if (>= x u666661929) u666661929
+                                                (if (>= x u263294601) u263294601
+                                                  (if (>= x u103986809) u103986809
+                                                    (if (>= x u66236147) u66236147
+                                                      (if (>= x u41069040) u41069040
+                                                        (if (>= x u26159616) u26159616
+                                                          (if (>= x u16220000) u16220000
+                                                            (if (>= x u10334000) u10334000
+                                                              (if (>= x u6410000) u6410000
+                                                                (if (>= x u4083200) u4083200
+                                                                  (if (>= x u2532000) u2532000
+                                                                    (if (>= x u1612800) u1612800
+                                                                      u1000000)))))))))))))))))))))))))))))))))))
 
 (define-read-only (get-ln-upper (x uint))
   (if (<= x u1000000) u1000000
-    (if (<= x u2000000) u2000000
-      (if (<= x u3000000) u3000000
-        (if (<= x u4000000) u4000000
-          (if (<= x u5000000) u5000000
-            (if (<= x u10000000) u10000000
-              (if (<= x u15000000) u15000000
-                (if (<= x u20000000) u20000000
-                  (if (<= x u30000000) u30000000
-                    (if (<= x u50000000) u50000000
-                      (if (<= x u100000000) u100000000
-                        (if (<= x u200000000) u200000000
-                          (if (<= x u300000000) u300000000
-                            (if (<= x u500000000) u500000000
-                              (if (<= x u1000000000) u1000000000
-                                (if (<= x u10000000000) u10000000000
-                                  (if (<= x u100000000000) u100000000000
-                                    (if (<= x u1000000000000) u1000000000000
-                                      u10000000000000)))))))))))))))))))
+    (if (<= x u1612800) u1612800
+      (if (<= x u2532000) u2532000
+        (if (<= x u4083200) u4083200
+          (if (<= x u6410000) u6410000
+            (if (<= x u10334000) u10334000
+              (if (<= x u16220000) u16220000
+                (if (<= x u26159616) u26159616
+                  (if (<= x u41069040) u41069040
+                    (if (<= x u66236147) u66236147
+                      (if (<= x u103986809) u103986809
+                        (if (<= x u263294601) u263294601
+                          (if (<= x u666661929) u666661929
+                            (if (<= x u1687988006) u1687988006
+                              (if (<= x u4273985632) u4273985632
+                                (if (<= x u10821731622) u10821731622
+                                  (if (<= x u27400624468) u27400624468
+                                    (if (<= x u69378381154) u69378381154
+                                      (if (<= x u175803743074) u175803743074
+                                        (if (<= x u445135077462) u445135077462
+                                          (if (<= x u1127082016130) u1127082016130
+                                            (if (<= x u2853771664850) u2853771664850
+                                              (if (<= x u7225749855410) u7225749855410
+                                                (if (<= x u18295598633900) u18295598633900
+                                                  (if (<= x u46324455741000) u46324455741000
+                                                    (if (<= x u117293521936000) u117293521936000
+                                                      (if (<= x u296987197543000) u296987197543000
+                                                        (if (<= x u751971584178000) u751971584178000
+                                                          (if (<= x u1903992051140000) u1903992051140000
+                                                            (if (<= x u4820907873480000) u4820907873480000
+                                                              (if (<= x u12206538735700000) u12206538735700000
+                                                                (if (<= x u30906956078700000) u30906956078700000
+                                                                  (if (<= x u78256412791200000) u78256412791200000
+                                                                    (if (<= x u198145237187000000) u198145237187000000
+                                                                      u501703740558000000)))))))))))))))))))))))))))))))))))
 
 (define-read-only (ln (x uint))
   (let
