@@ -8,7 +8,6 @@
 
 (define-constant ERR-INVALID-WIN-OUTCOME-ID (err u821))
 (define-constant ERR-INVALID-AMOUNT (err u822))
-(define-constant ERR-INVALID-COST (err u823))
 
 (define-constant ERR-EVENT-NOT-OPENED (err u831))
 (define-constant ERR-EVENT-NOT-RESOLVED (err u832))
@@ -111,7 +110,6 @@
     )
     (asserts! (is-eq (get status event) u1) ERR-EVENT-NOT-OPENED)
     (asserts! (is-amount-valid amt1) ERR-INVALID-AMOUNT)
-    (asserts! (> cost1 u0) ERR-INVALID-COST)
     (if (<= cost1 max-cost)
       (buy-shares event-id outcome-id amt1 cost1)
       ERR-COST-TOO-HIGH
@@ -128,7 +126,6 @@
     )
     (asserts! (is-eq (get status event) u1) ERR-EVENT-NOT-OPENED)
     (asserts! (is-amount-valid amt1) ERR-INVALID-AMOUNT)
-    (asserts! (> cost1 u0) ERR-INVALID-COST)
     (if (<= cost1 max-cost)
       (buy-shares event-id outcome-id amt1 cost1)
       (let
@@ -136,7 +133,6 @@
           (cost2 (get-delta-cost beta qqbs outcome-id true amt2))
         )
         (asserts! (is-amount-valid amt2) ERR-INVALID-AMOUNT)
-        (asserts! (> cost2 u0) ERR-INVALID-COST)
         (if (<= cost2 max-cost)
           (buy-shares event-id outcome-id amt2 cost2)
           ERR-COST-TOO-HIGH
@@ -155,7 +151,6 @@
     )
     (asserts! (is-eq (get status event) u1) ERR-EVENT-NOT-OPENED)
     (asserts! (is-amount-valid amt1) ERR-INVALID-AMOUNT)
-    (asserts! (> cost1 u0) ERR-INVALID-COST)
     (if (<= cost1 max-cost)
       (buy-shares event-id outcome-id amt1 cost1)
       (let
@@ -163,7 +158,6 @@
           (cost2 (get-delta-cost beta qqbs outcome-id true amt2))
         )
         (asserts! (is-amount-valid amt2) ERR-INVALID-AMOUNT)
-        (asserts! (> cost2 u0) ERR-INVALID-COST)
         (if (<= cost2 max-cost)
           (buy-shares event-id outcome-id amt2 cost2)
           (let
@@ -171,8 +165,7 @@
               (cost3 (get-delta-cost beta qqbs outcome-id true amt3))
             )
             (asserts! (is-amount-valid amt3) ERR-INVALID-AMOUNT)
-            (asserts! (> cost3 u0) ERR-INVALID-COST)
-            (if (<= cost2 max-cost)
+            (if (<= cost3 max-cost)
               (buy-shares event-id outcome-id amt3 cost3)
               ERR-COST-TOO-HIGH
             )
@@ -193,7 +186,6 @@
     )
     (asserts! (is-eq (get status event) u1) ERR-EVENT-NOT-OPENED)
     (asserts! (is-amount-valid amt1) ERR-INVALID-AMOUNT)
-    (asserts! (> cost1 u0) ERR-INVALID-COST)
     (if (>= cost1 min-cost)
       (sell-shares event-id outcome-id amt1 cost1)
       ERR-COST-TOO-LOW
@@ -210,7 +202,6 @@
     )
     (asserts! (is-eq (get status event) u1) ERR-EVENT-NOT-OPENED)
     (asserts! (is-amount-valid amt1) ERR-INVALID-AMOUNT)
-    (asserts! (> cost1 u0) ERR-INVALID-COST)
     (if (>= cost1 min-cost)
       (sell-shares event-id outcome-id amt1 cost1)
       (let
@@ -218,7 +209,6 @@
           (cost2 (get-delta-cost beta qqbs outcome-id false amt2))
         )
         (asserts! (is-amount-valid amt2) ERR-INVALID-AMOUNT)
-        (asserts! (> cost2 u0) ERR-INVALID-COST)
         (if (>= cost2 min-cost)
           (sell-shares event-id outcome-id amt2 cost2)
           ERR-COST-TOO-LOW
@@ -237,7 +227,6 @@
     )
     (asserts! (is-eq (get status event) u1) ERR-EVENT-NOT-OPENED)
     (asserts! (is-amount-valid amt1) ERR-INVALID-AMOUNT)
-    (asserts! (> cost1 u0) ERR-INVALID-COST)
     (if (>= cost1 min-cost)
       (sell-shares event-id outcome-id amt1 cost1)
       (let
@@ -245,7 +234,6 @@
           (cost2 (get-delta-cost beta qqbs outcome-id false amt2))
         )
         (asserts! (is-amount-valid amt2) ERR-INVALID-AMOUNT)
-        (asserts! (> cost2 u0) ERR-INVALID-COST)
         (if (>= cost2 min-cost)
           (sell-shares event-id outcome-id amt2 cost2)
           (let
@@ -253,7 +241,6 @@
               (cost3 (get-delta-cost beta qqbs outcome-id false amt3))
             )
             (asserts! (is-amount-valid amt3) ERR-INVALID-AMOUNT)
-            (asserts! (> cost3 u0) ERR-INVALID-COST)
             (if (>= cost3 min-cost)
               (sell-shares event-id outcome-id amt3 cost3)
               ERR-COST-TOO-LOW
@@ -387,11 +374,12 @@
       (n-qqbs (get-new-qqbs beta qqbs id is-buy amount))
       (cost-before (get-cost beta qqbs))
       (cost-after (get-cost beta n-qqbs))
+      (delta-cost (if (< cost-after cost-before)
+        (- cost-before cost-after)
+        (- cost-after cost-before)
+      ))
     )
-    (if (< cost-after cost-before)
-      (- cost-before cost-after)
-      (- cost-after cost-before)
-    )
+    (if (> delta-cost amount) amount delta-cost)
   )
 )
 
@@ -596,10 +584,15 @@
 (define-map exp-lookup { x: uint } { value: uint })
 (begin
   (map-insert exp-lookup { x: u0 } { value: u1000000 })
+  (map-insert exp-lookup { x: u500000 } { value: u1648721 })
   (map-insert exp-lookup { x: u1000000 } { value: u2718281 })
+  (map-insert exp-lookup { x: u1500000 } { value: u4481689 })
   (map-insert exp-lookup { x: u2000000 } { value: u7389056 })
+  (map-insert exp-lookup { x: u2500000 } { value: u12182493 })
   (map-insert exp-lookup { x: u3000000 } { value: u20085536 })
+  (map-insert exp-lookup { x: u3500000 } { value: u33115451 })
   (map-insert exp-lookup { x: u4000000 } { value: u54598150 })
+  (map-insert exp-lookup { x: u4500000 } { value: u90017131 })
   (map-insert exp-lookup { x: u5000000 } { value: u148413159 })
   (map-insert exp-lookup { x: u6000000 } { value: u403428793 })
   (map-insert exp-lookup { x: u7000000 } { value: u1096633158 })
@@ -654,60 +647,76 @@
                                     (if (>= x u18000000) u18000000
                                       (if (>= x u17000000) u17000000
                                         (if (>= x u16000000) u16000000
-                                          (if (>= x u15000000) u15000000
-                                            (if (>= x u14000000) u14000000
-                                              (if (>= x u13000000) u13000000
-                                                (if (>= x u12000000) u12000000
-                                                  (if (>= x u11000000) u11000000
-                                                    (if (>= x u10000000) u10000000
-                                                      (if (>= x u9000000) u9000000
-                                                        (if (>= x u8000000) u8000000
-                                                          (if (>= x u7000000) u7000000
-                                                            (if (>= x u6000000) u6000000
-                                                              (if (>= x u5000000) u5000000
-                                                                (if (>= x u4000000) u4000000
-                                                                  (if (>= x u3000000) u3000000
-                                                                    (if (>= x u2000000) u2000000
-                                                                      (if (>= x u1000000) u1000000
-                                                                          u0))))))))))))))))))))))))))))))))))))
+                                          (get-exp-lower-lower x))))))))))))))))))))))
+
+(define-read-only (get-exp-lower-lower (x uint))
+  (if (>= x u15000000) u15000000
+    (if (>= x u14000000) u14000000
+      (if (>= x u13000000) u13000000
+        (if (>= x u12000000) u12000000
+          (if (>= x u11000000) u11000000
+            (if (>= x u10000000) u10000000
+              (if (>= x u9000000) u9000000
+                (if (>= x u8000000) u8000000
+                  (if (>= x u7000000) u7000000
+                    (if (>= x u6000000) u6000000
+                      (if (>= x u5000000) u5000000
+                        (if (>= x u4500000) u4500000
+                          (if (>= x u4000000) u4000000
+                            (if (>= x u3500000) u3500000
+                              (if (>= x u3000000) u3000000
+                                (if (>= x u2500000) u2500000
+                                  (if (>= x u2000000) u2000000
+                                    (if (>= x u1500000) u1500000
+                                      (if (>= x u1000000) u1000000
+                                        (if (>= x u500000) u500000
+                                          u0)))))))))))))))))))))
 
 (define-read-only (get-exp-upper (x uint))
   (if (<= x u0) u0
-    (if (<= x u1000000) u1000000
-      (if (<= x u2000000) u2000000
-        (if (<= x u3000000) u3000000
-          (if (<= x u4000000) u4000000
-            (if (<= x u5000000) u5000000
-              (if (<= x u6000000) u6000000
-                (if (<= x u7000000) u7000000
-                  (if (<= x u8000000) u8000000
-                    (if (<= x u9000000) u9000000
-                      (if (<= x u10000000) u10000000
-                        (if (<= x u11000000) u11000000
-                          (if (<= x u12000000) u12000000
-                            (if (<= x u13000000) u13000000
-                              (if (<= x u14000000) u14000000
-                                (if (<= x u15000000) u15000000
-                                  (if (<= x u16000000) u16000000
-                                    (if (<= x u17000000) u17000000
-                                      (if (<= x u18000000) u18000000
-                                        (if (<= x u19000000) u19000000
-                                          (if (<= x u20000000) u20000000
-                                            (if (<= x u21000000) u21000000
-                                              (if (<= x u22000000) u22000000
-                                                (if (<= x u23000000) u23000000
-                                                  (if (<= x u24000000) u24000000
-                                                    (if (<= x u25000000) u25000000
-                                                      (if (<= x u25500000) u25500000
-                                                        (if (<= x u26000000) u26000000
-                                                          (if (<= x u26500000) u26500000
-                                                            (if (<= x u27000000) u27000000
-                                                              (if (<= x u27500000) u27500000
-                                                                (if (<= x u28000000) u28000000
-                                                                  (if (<= x u28500000) u28500000
-                                                                    (if (<= x u29000000) u29000000
-                                                                      (if (<= x u29500000) u29500000
-                                                                        u30000000))))))))))))))))))))))))))))))))))))
+    (if (<= x u500000) u500000
+      (if (<= x u1000000) u1000000
+        (if (<= x u1500000) u1500000
+          (if (<= x u2000000) u2000000
+            (if (<= x u2500000) u2500000
+              (if (<= x u3000000) u3000000
+                (if (<= x u3500000) u3500000
+                  (if (<= x u4000000) u4000000
+                    (if (<= x u4500000) u4500000
+                      (if (<= x u5000000) u5000000
+                        (if (<= x u6000000) u6000000
+                          (if (<= x u7000000) u7000000
+                            (if (<= x u8000000) u8000000
+                              (if (<= x u9000000) u9000000
+                                (if (<= x u10000000) u10000000
+                                  (if (<= x u11000000) u11000000
+                                    (if (<= x u12000000) u12000000
+                                      (if (<= x u13000000) u13000000
+                                        (if (<= x u14000000) u14000000
+                                          (get-exp-upper-upper x))))))))))))))))))))))
+
+(define-read-only (get-exp-upper-upper (x uint))
+  (if (<= x u15000000) u15000000
+    (if (<= x u16000000) u16000000
+      (if (<= x u17000000) u17000000
+        (if (<= x u18000000) u18000000
+          (if (<= x u19000000) u19000000
+            (if (<= x u20000000) u20000000
+              (if (<= x u21000000) u21000000
+                (if (<= x u22000000) u22000000
+                  (if (<= x u23000000) u23000000
+                    (if (<= x u24000000) u24000000
+                      (if (<= x u25000000) u25000000
+                        (if (<= x u25500000) u25500000
+                          (if (<= x u26000000) u26000000
+                            (if (<= x u26500000) u26500000
+                              (if (<= x u27000000) u27000000
+                                (if (<= x u27500000) u27500000
+                                  (if (<= x u28000000) u28000000
+                                    (if (<= x u28500000) u28500000
+                                      (if (<= x u29000000) u29000000
+                                        (if (<= x u29500000) u29500000
+                                          u30000000)))))))))))))))))))))
 
 (define-read-only (exp (x uint))
   (let
