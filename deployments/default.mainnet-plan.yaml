@@ -9,10 +9,31 @@ plan:
     - id: 0
       transactions:
         - contract-publish:
-            contract-name: augurrank-btc-v2
-            expected-sender: SPGW94RBCYZNTV42XX57YZSHWZNKY9HYZJNYV8NR
-            cost: 4191
-            path: contracts/augurrank-btc.clar
+            contract-name: augur-token
+            expected-sender: SP1ARJX5XDEYWNDX8JEKGTZNZ0YJHQAYDWVNBRXGM
+            cost: 3261
+            path: contracts/augur-token.clar
             anchor-block-only: true
             clarity-version: 3
-      epoch: "3.0"
+        - contract-publish:
+            contract-name: augur-enroll
+            expected-sender: SP1ARJX5XDEYWNDX8JEKGTZNZ0YJHQAYDWVNBRXGM
+            cost: 882
+            path: contracts/augur-enroll.clar
+            anchor-block-only: true
+            clarity-version: 3
+        - contract-publish:
+            contract-name: augur-markets
+            expected-sender: SP1ARJX5XDEYWNDX8JEKGTZNZ0YJHQAYDWVNBRXGM
+            cost: 35335
+            path: contracts/augur-markets.clar
+            anchor-block-only: true
+            clarity-version: 3
+        - contract-publish:
+            contract-name: augur-store
+            expected-sender: SP1ARJX5XDEYWNDX8JEKGTZNZ0YJHQAYDWVNBRXGM
+            cost: 17
+            path: contracts/augur-store.clar
+            anchor-block-only: true
+            clarity-version: 3
+      epoch: "3.1"
