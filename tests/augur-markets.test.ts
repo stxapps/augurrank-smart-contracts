@@ -108,7 +108,9 @@ it('event', () => {
   expect(res.result).toBeOk(Cl.bool(true));
 
   res = simnet.callPublicFn('augur-markets', 'buy-shares-a', arg1, wallet1);
-  expect(res.result).toBeOk(Cl.tuple({ cost: Cl.uint(636400) }));
+  expect(res.result).toBeOk(Cl.tuple({
+    amount: Cl.uint(1000000), cost: Cl.uint(636400),
+  }));
 
   res = simnet.callPublicFn(
     'augur-markets',
@@ -145,7 +147,9 @@ it('event', () => {
 
   arg1 = [Cl.uint(0), Cl.uint(0), Cl.uint(2000000), Cl.uint(1000000), Cl.uint(900000)]
   res = simnet.callPublicFn('augur-markets', 'buy-shares-b', arg1, wallet2);
-  expect(res.result).toBeOk(Cl.tuple({ cost: Cl.uint(636400) }));
+  expect(res.result).toBeOk(Cl.tuple({
+    amount: Cl.uint(1000000), cost: Cl.uint(636400),
+  }));
 
   arg1 = [Cl.uint(0), Cl.list([Cl.uint(0), Cl.uint(1)])];
   res = simnet.callReadOnlyFn('augur-markets', 'get-b-and-ocs', arg1, wallet1);
@@ -184,7 +188,9 @@ it('event', () => {
     Cl.uint(200000000), Cl.uint(150000000), Cl.uint(100000000), Cl.uint(90000000),
   ]
   res = simnet.callPublicFn('augur-markets', 'buy-shares-c', arg1, wallet1);
-  expect(res.result).toBeOk(Cl.tuple({ cost: Cl.uint(63664000) }));
+  expect(res.result).toBeOk(Cl.tuple({
+    amount: Cl.uint(100000000), cost: Cl.uint(63664000),
+  }));
 
   arg1 = [Cl.uint(1), Cl.uint(0), Cl.uint(1000000), Cl.uint(0)];
   res = simnet.callPublicFn('augur-markets', 'sell-shares-a', arg1, wallet2);
@@ -204,7 +210,9 @@ it('event', () => {
 
   arg1 = [Cl.uint(0), Cl.uint(0), Cl.uint(1000000), Cl.uint(0)];
   res = simnet.callPublicFn('augur-markets', 'sell-shares-a', arg1, wallet2);
-  expect(res.result).toBeOk(Cl.tuple({ cost: Cl.uint(636800) }));
+  expect(res.result).toBeOk(Cl.tuple({
+    amount: Cl.uint(1000000), cost: Cl.uint(636800),
+  }));
 
   arg1 = [Cl.uint(0), Cl.list([Cl.uint(0), Cl.uint(1), Cl.uint(2), Cl.uint(3)])];
   res = simnet.callReadOnlyFn('augur-markets', 'get-b-and-ocs', arg1, wallet1);
@@ -247,14 +255,18 @@ it('event', () => {
 
   arg1 = [Cl.uint(0), Cl.uint(0), Cl.uint(1000000), Cl.uint(6000000), Cl.uint(3000000)];
   res = simnet.callPublicFn('augur-markets', 'sell-shares-b', arg1, wallet1);
-  expect(res.result).toBeOk(Cl.tuple({ cost: Cl.uint(3820000) }));
+  expect(res.result).toBeOk(Cl.tuple({
+    amount: Cl.uint(6000000), cost: Cl.uint(3820000),
+  }));
 
   arg1 = [
     Cl.uint(0), Cl.uint(0),
     Cl.uint(1000000), Cl.uint(2000000), Cl.uint(10000000), Cl.uint(4000000),
   ];
   res = simnet.callPublicFn('augur-markets', 'sell-shares-c', arg1, wallet1);
-  expect(res.result).toBeOk(Cl.tuple({ cost: Cl.uint(6366400) }));
+  expect(res.result).toBeOk(Cl.tuple({
+    amount: Cl.uint(10000000), cost: Cl.uint(6366400),
+  }));
 
   res = simnet.callPublicFn('augur-markets', 'claim-reward', [Cl.uint(3)], wallet1);
   expect(res.result).toBeErr(Cl.uint(811));
@@ -349,15 +361,21 @@ it('rewards', () => {
 
   arg1 = [Cl.uint(0), Cl.uint(0), Cl.uint(100000000), Cl.uint(100000000)];
   res = simnet.callPublicFn('augur-markets', 'buy-shares-a', arg1, wallet1);
-  expect(res.result).toBeOk(Cl.tuple({ cost: Cl.uint(39969600) }));
+  expect(res.result).toBeOk(Cl.tuple({
+    amount: Cl.uint(100000000), cost: Cl.uint(39969600),
+  }));
 
   arg1 = [Cl.uint(0), Cl.uint(0), Cl.uint(100000000), Cl.uint(100000000)];
   res = simnet.callPublicFn('augur-markets', 'buy-shares-a', arg1, wallet2);
-  expect(res.result).toBeOk(Cl.tuple({ cost: Cl.uint(52934100) }));
+  expect(res.result).toBeOk(Cl.tuple({
+    amount: Cl.uint(100000000), cost: Cl.uint(52934100),
+  }));
 
   arg1 = [Cl.uint(0), Cl.uint(2), Cl.uint(1000000000), Cl.uint(1000000000)];
   res = simnet.callPublicFn('augur-markets', 'buy-shares-a', arg1, wallet3);
-  expect(res.result).toBeOk(Cl.tuple({ cost: Cl.uint(615390300) }));
+  expect(res.result).toBeOk(Cl.tuple({
+    amount: Cl.uint(1000000000), cost: Cl.uint(615390300),
+  }));
 
   arg1 = [Cl.uint(0), Cl.uint(2), Cl.some(Cl.uint(2))];
   res = simnet.callPublicFn('augur-markets', 'set-event-status', arg1, deployer);
@@ -425,15 +443,21 @@ it('claim refund', () => {
 
   arg1 = [Cl.uint(0), Cl.uint(0), Cl.uint(100000000), Cl.uint(100000000)];
   res = simnet.callPublicFn('augur-markets', 'buy-shares-a', arg1, wallet1);
-  expect(res.result).toBeOk(Cl.tuple({ cost: Cl.uint(39969600) }));
+  expect(res.result).toBeOk(Cl.tuple({
+    amount: Cl.uint(100000000), cost: Cl.uint(39969600),
+  }));
 
   arg1 = [Cl.uint(0), Cl.uint(0), Cl.uint(100000000), Cl.uint(100000000)];
   res = simnet.callPublicFn('augur-markets', 'buy-shares-a', arg1, wallet2);
-  expect(res.result).toBeOk(Cl.tuple({ cost: Cl.uint(52934100) }));
+  expect(res.result).toBeOk(Cl.tuple({
+    amount: Cl.uint(100000000), cost: Cl.uint(52934100),
+  }));
 
   arg1 = [Cl.uint(0), Cl.uint(2), Cl.uint(1000000000), Cl.uint(1000000000)];
   res = simnet.callPublicFn('augur-markets', 'buy-shares-a', arg1, wallet3);
-  expect(res.result).toBeOk(Cl.tuple({ cost: Cl.uint(615390300) }));
+  expect(res.result).toBeOk(Cl.tuple({
+    amount: Cl.uint(1000000000), cost: Cl.uint(615390300),
+  }));
 
   arg1 = [Cl.uint(0), Cl.uint(2), Cl.some(Cl.uint(2))];
   res = simnet.callPublicFn('augur-markets', 'set-event-status', arg1, deployer);
@@ -509,15 +533,21 @@ it('refund', () => {
 
   arg1 = [Cl.uint(0), Cl.uint(0), Cl.uint(100000000), Cl.uint(100000000)];
   res = simnet.callPublicFn('augur-markets', 'buy-shares-a', arg1, wallet1);
-  expect(res.result).toBeOk(Cl.tuple({ cost: Cl.uint(39969600) }));
+  expect(res.result).toBeOk(Cl.tuple({
+    amount: Cl.uint(100000000), cost: Cl.uint(39969600),
+  }));
 
   arg1 = [Cl.uint(0), Cl.uint(0), Cl.uint(100000000), Cl.uint(100000000)];
   res = simnet.callPublicFn('augur-markets', 'buy-shares-a', arg1, wallet2);
-  expect(res.result).toBeOk(Cl.tuple({ cost: Cl.uint(52934100) }));
+  expect(res.result).toBeOk(Cl.tuple({
+    amount: Cl.uint(100000000), cost: Cl.uint(52934100),
+  }));
 
   arg1 = [Cl.uint(0), Cl.uint(2), Cl.uint(1000000000), Cl.uint(1000000000)];
   res = simnet.callPublicFn('augur-markets', 'buy-shares-a', arg1, wallet3);
-  expect(res.result).toBeOk(Cl.tuple({ cost: Cl.uint(615390300) }));
+  expect(res.result).toBeOk(Cl.tuple({
+    amount: Cl.uint(1000000000), cost: Cl.uint(615390300),
+  }));
 
   arg1 = [Cl.uint(0), Cl.uint(2), Cl.some(Cl.uint(2))];
   res = simnet.callPublicFn('augur-markets', 'set-event-status', arg1, deployer);
@@ -704,99 +734,143 @@ it('prices', () => {
 
   arg1 = [Cl.uint(0), Cl.uint(2), Cl.uint(50000000), Cl.uint(1000000000)];
   res = simnet.callPublicFn('augur-markets', 'buy-shares-a', arg1, wallet1);
-  expect(res.result).toBeOk(Cl.tuple({ cost: Cl.uint(15425100) }));
+  expect(res.result).toBeOk(Cl.tuple({
+    amount: Cl.uint(50000000), cost: Cl.uint(15425100),
+  }));
 
-  res = simnet.callReadOnlyFn('augur-markets', 'get-share-costs', [Cl.uint(0)], wallet1);
+  res = simnet.callReadOnlyFn(
+    'augur-markets', 'get-share-costs', [Cl.uint(0)], wallet1
+  );
   expect(res.result).toBeList([
     Cl.uint(237178), Cl.uint(237178), Cl.uint(288465), Cl.uint(237178),
   ]);
 
   arg1 = [Cl.uint(0), Cl.uint(2), Cl.uint(40000000), Cl.uint(1000000000)];
   res = simnet.callPublicFn('augur-markets', 'buy-shares-a', arg1, wallet2);
-  expect(res.result).toBeOk(Cl.tuple({ cost: Cl.uint(10058700) }));
+  expect(res.result).toBeOk(Cl.tuple({
+    amount: Cl.uint(40000000), cost: Cl.uint(10058700),
+  }));
 
-  res = simnet.callReadOnlyFn('augur-markets', 'get-share-costs', [Cl.uint(0)], wallet1);
+  res = simnet.callReadOnlyFn(
+    'augur-markets', 'get-share-costs', [Cl.uint(0)], wallet1
+  );
   expect(res.result).toBeList([
     Cl.uint(227830), Cl.uint(227830), Cl.uint(316509), Cl.uint(227830),
   ]);
 
   arg1 = [Cl.uint(0), Cl.uint(3), Cl.uint(1000000000), Cl.uint(1000000000)];
   res = simnet.callPublicFn('augur-markets', 'buy-shares-a', arg1, wallet3);
-  expect(res.result).toBeOk(Cl.tuple({ cost: Cl.uint(593875800) }));
+  expect(res.result).toBeOk(Cl.tuple({
+    amount: Cl.uint(1000000000), cost: Cl.uint(593875800),
+  }));
 
-  res = simnet.callReadOnlyFn('augur-markets', 'get-share-costs', [Cl.uint(0)], wallet1);
+  res = simnet.callReadOnlyFn(
+    'augur-markets', 'get-share-costs', [Cl.uint(0)], wallet1
+  );
   expect(res.result).toBeList([
     Cl.uint(31093), Cl.uint(31093), Cl.uint(43195), Cl.uint(894617),
   ]);
 
   arg1 = [Cl.uint(0), Cl.uint(2), Cl.uint(40000000), Cl.uint(0)];
   res = simnet.callPublicFn('augur-markets', 'sell-shares-a', arg1, wallet2);
-  expect(res.result).toBeOk(Cl.tuple({ cost: Cl.uint(1570200) }));
+  expect(res.result).toBeOk(Cl.tuple({
+    amount: Cl.uint(40000000), cost: Cl.uint(1570200),
+  }));
 
-  res = simnet.callReadOnlyFn('augur-markets', 'get-share-costs', [Cl.uint(0)], wallet1);
+  res = simnet.callReadOnlyFn(
+    'augur-markets', 'get-share-costs', [Cl.uint(0)], wallet1
+  );
   expect(res.result).toBeList([
     Cl.uint(31261), Cl.uint(31261), Cl.uint(38021), Cl.uint(899456),
   ]);
 
   arg1 = [Cl.uint(0), Cl.uint(0), Cl.uint(50000000), Cl.uint(1000000000)];
   res = simnet.callPublicFn('augur-markets', 'buy-shares-a', arg1, wallet1);
-  expect(res.result).toBeOk(Cl.tuple({ cost: Cl.uint(1962600) }));
+  expect(res.result).toBeOk(Cl.tuple({
+    amount: Cl.uint(50000000), cost: Cl.uint(1962600),
+  }));
 
-  res = simnet.callReadOnlyFn('augur-markets', 'get-share-costs', [Cl.uint(0)], wallet1);
+  res = simnet.callReadOnlyFn(
+    'augur-markets', 'get-share-costs', [Cl.uint(0)], wallet1
+  );
   expect(res.result).toBeList([
     Cl.uint(37765), Cl.uint(31051), Cl.uint(37765), Cl.uint(893416),
   ]);
 
   arg1 = [Cl.uint(0), Cl.uint(3), Cl.uint(100000000), Cl.uint(1000000000)];
   res = simnet.callPublicFn('augur-markets', 'buy-shares-a', arg1, wallet3);
-  expect(res.result).toBeOk(Cl.tuple({ cost: Cl.uint(95490000) }));
+  expect(res.result).toBeOk(Cl.tuple({
+    amount: Cl.uint(100000000), cost: Cl.uint(95490000),
+  }));
 
-  res = simnet.callReadOnlyFn('augur-markets', 'get-share-costs', [Cl.uint(0)], wallet1);
+  res = simnet.callReadOnlyFn(
+    'augur-markets', 'get-share-costs', [Cl.uint(0)], wallet1
+  );
   expect(res.result).toBeList([
     Cl.uint(27825), Cl.uint(22878), Cl.uint(27825), Cl.uint(921469),
   ]);
 
   arg1 = [Cl.uint(0), Cl.uint(3), Cl.uint(1000000000), Cl.uint(1000000000)];
   res = simnet.callPublicFn('augur-markets', 'buy-shares-a', arg1, wallet4);
-  expect(res.result).toBeOk(Cl.tuple({ cost: Cl.uint(939336900) }));
+  expect(res.result).toBeOk(Cl.tuple({
+    amount: Cl.uint(1000000000), cost: Cl.uint(939336900),
+  }));
 
-  res = simnet.callReadOnlyFn('augur-markets', 'get-share-costs', [Cl.uint(0)], wallet1);
+  res = simnet.callReadOnlyFn(
+    'augur-markets', 'get-share-costs', [Cl.uint(0)], wallet1
+  );
   expect(res.result).toBeList([
     Cl.uint(1105), Cl.uint(909), Cl.uint(1105), Cl.uint(996879),
   ]);
 
   arg1 = [Cl.uint(0), Cl.uint(0), Cl.uint(50000000), Cl.uint(0)];
   res = simnet.callPublicFn('augur-markets', 'sell-shares-a', arg1, wallet1);
-  expect(res.result).toBeOk(Cl.tuple({ cost: Cl.uint(59100) }));
+  expect(res.result).toBeOk(Cl.tuple({
+    amount: Cl.uint(50000000), cost: Cl.uint(59100),
+  }));
 
-  res = simnet.callReadOnlyFn('augur-markets', 'get-share-costs', [Cl.uint(0)], wallet1);
+  res = simnet.callReadOnlyFn(
+    'augur-markets', 'get-share-costs', [Cl.uint(0)], wallet1
+  );
   expect(res.result).toBeList([
     Cl.uint(909), Cl.uint(909), Cl.uint(1105), Cl.uint(997075),
   ]);
 
   arg1 = [Cl.uint(0), Cl.uint(2), Cl.uint(50000000), Cl.uint(0)];
   res = simnet.callPublicFn('augur-markets', 'sell-shares-a', arg1, wallet1);
-  expect(res.result).toBeOk(Cl.tuple({ cost: Cl.uint(58800) }));
+  expect(res.result).toBeOk(Cl.tuple({
+    amount: Cl.uint(50000000), cost: Cl.uint(58800)
+  }));
 
-  res = simnet.callReadOnlyFn('augur-markets', 'get-share-costs', [Cl.uint(0)], wallet1);
+  res = simnet.callReadOnlyFn(
+    'augur-markets', 'get-share-costs', [Cl.uint(0)], wallet1
+  );
   expect(res.result).toBeList([
     Cl.uint(909), Cl.uint(909), Cl.uint(909), Cl.uint(997271),
   ]);
 
   arg1 = [Cl.uint(0), Cl.uint(3), Cl.uint(991000000), Cl.uint(1000000000)];
   res = simnet.callPublicFn('augur-markets', 'buy-shares-a', arg1, wallet2);
-  expect(res.result).toBeOk(Cl.tuple({ cost: Cl.uint(991000000) }));
+  expect(res.result).toBeOk(Cl.tuple({
+    amount: Cl.uint(991000000), cost: Cl.uint(991000000),
+  }));
 
-  res = simnet.callReadOnlyFn('augur-markets', 'get-share-costs', [Cl.uint(0)], wallet1);
+  res = simnet.callReadOnlyFn(
+    'augur-markets', 'get-share-costs', [Cl.uint(0)], wallet1
+  );
   expect(res.result).toBeList([
     Cl.uint(29), Cl.uint(29), Cl.uint(29), Cl.uint(999910),
   ]);
 
   arg1 = [Cl.uint(0), Cl.uint(3), Cl.uint(800000000), Cl.uint(1000000000)];
   res = simnet.callPublicFn('augur-markets', 'buy-shares-a', arg1, wallet1);
-  expect(res.result).toBeOk(Cl.tuple({ cost: Cl.uint(784287300) }));
+  expect(res.result).toBeOk(Cl.tuple({
+    amount: Cl.uint(800000000), cost: Cl.uint(784287300),
+  }));
 
-  res = simnet.callReadOnlyFn('augur-markets', 'get-share-costs', [Cl.uint(0)], wallet1);
+  res = simnet.callReadOnlyFn(
+    'augur-markets', 'get-share-costs', [Cl.uint(0)], wallet1
+  );
   expect(res.result).toBeList([
     Cl.uint(2), Cl.uint(2), Cl.uint(2), Cl.uint(999993),
   ]);
@@ -839,36 +913,52 @@ it('prices', () => {
 
   arg1 = [Cl.uint(0), Cl.uint(3), Cl.uint(1000000000), Cl.uint(0)];
   res = simnet.callPublicFn('augur-markets', 'sell-shares-a', arg1, wallet4);
-  expect(res.result).toBeOk(Cl.tuple({ cost: Cl.uint(1000000000) }));
+  expect(res.result).toBeOk(Cl.tuple({
+    amount: Cl.uint(1000000000), cost: Cl.uint(1000000000),
+  }));
 
-  res = simnet.callReadOnlyFn('augur-markets', 'get-share-costs', [Cl.uint(0)], wallet1);
+  res = simnet.callReadOnlyFn(
+    'augur-markets', 'get-share-costs', [Cl.uint(0)], wallet1
+  );
   expect(res.result).toBeList([
     Cl.uint(58), Cl.uint(58), Cl.uint(58), Cl.uint(999823),
   ]);
 
   arg1 = [Cl.uint(0), Cl.uint(3), Cl.uint(1100000000), Cl.uint(0)];
   res = simnet.callPublicFn('augur-markets', 'sell-shares-a', arg1, wallet3);
-  expect(res.result).toBeOk(Cl.tuple({ cost: Cl.uint(1100000000) }));
+  expect(res.result).toBeOk(Cl.tuple({
+    amount: Cl.uint(1100000000), cost: Cl.uint(1100000000),
+  }));
 
-  res = simnet.callReadOnlyFn('augur-markets', 'get-share-costs', [Cl.uint(0)], wallet1);
+  res = simnet.callReadOnlyFn(
+    'augur-markets', 'get-share-costs', [Cl.uint(0)], wallet1
+  );
   expect(res.result).toBeList([
     Cl.uint(2507), Cl.uint(2507), Cl.uint(2507), Cl.uint(992477),
   ]);
 
   arg1 = [Cl.uint(0), Cl.uint(3), Cl.uint(991000000), Cl.uint(0)];
   res = simnet.callPublicFn('augur-markets', 'sell-shares-a', arg1, wallet2);
-  expect(res.result).toBeOk(Cl.tuple({ cost: Cl.uint(906683400) }));
+  expect(res.result).toBeOk(Cl.tuple({
+    amount: Cl.uint(991000000), cost: Cl.uint(906683400)
+  }));
 
-  res = simnet.callReadOnlyFn('augur-markets', 'get-share-costs', [Cl.uint(0)], wallet1);
+  res = simnet.callReadOnlyFn(
+    'augur-markets', 'get-share-costs', [Cl.uint(0)], wallet1
+  );
   expect(res.result).toBeList([
     Cl.uint(56126), Cl.uint(56126), Cl.uint(56126), Cl.uint(831619),
   ]);
 
   arg1 = [Cl.uint(0), Cl.uint(3), Cl.uint(800000000), Cl.uint(0)];
   res = simnet.callPublicFn('augur-markets', 'sell-shares-a', arg1, wallet1);
-  expect(res.result).toBeOk(Cl.tuple({ cost: Cl.uint(444535200) }));
+  expect(res.result).toBeOk(Cl.tuple({
+    amount: Cl.uint(800000000), cost: Cl.uint(444535200),
+  }));
 
-  res = simnet.callReadOnlyFn('augur-markets', 'get-share-costs', [Cl.uint(0)], wallet1);
+  res = simnet.callReadOnlyFn(
+    'augur-markets', 'get-share-costs', [Cl.uint(0)], wallet1
+  );
   expect(res.result).toBeList([
     Cl.uint(250000), Cl.uint(250000), Cl.uint(250000), Cl.uint(250000),
   ]);
@@ -883,7 +973,9 @@ it('prices', () => {
 
   arg1 = [Cl.uint(0), Cl.uint(3), Cl.uint(1000000000), Cl.uint(1000000000)];
   res = simnet.callPublicFn('augur-markets', 'buy-shares-a', arg1, wallet1);
-  expect(res.result).toBeOk(Cl.tuple({ cost: Cl.uint(346530000) }));
+  expect(res.result).toBeOk(Cl.tuple({
+    amount: Cl.uint(1000000000), cost: Cl.uint(346530000),
+  }));
 
   arg1 = [Cl.uint(0), Cl.uint(1000000000)];
   res = simnet.callPublicFn('augur-markets', 'set-event-beta', arg1, deployer);
@@ -891,7 +983,9 @@ it('prices', () => {
 
   arg1 = [Cl.uint(0), Cl.uint(3), Cl.uint(991000000), Cl.uint(1000000000)];
   res = simnet.callPublicFn('augur-markets', 'buy-shares-a', arg1, wallet2);
-  expect(res.result).toBeOk(Cl.tuple({ cost: Cl.uint(611857000) }));
+  expect(res.result).toBeOk(Cl.tuple({
+    amount: Cl.uint(991000000), cost: Cl.uint(611857000),
+  }));
 });
 
 it('LMSR', () => {

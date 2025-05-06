@@ -536,7 +536,7 @@
     (map-set users { event-id: event-id, outcome-id: outcome-id, user-id: tx-sender }
       (merge user { share-amount: (+ (get share-amount user) amount) })
     )
-    (ok { cost: cost })
+    (ok { amount: amount, cost: cost })
   )
 )
 
@@ -554,7 +554,7 @@
     (map-set users { event-id: event-id, outcome-id: outcome-id, user-id: tx-sender }
       (merge user { share-amount: (- (get share-amount user) amount) })
     )
-    (ok { cost: cost })
+    (ok { amount: amount, cost: cost })
   )
 )
 
