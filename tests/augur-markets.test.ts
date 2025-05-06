@@ -165,6 +165,12 @@ it('event', () => {
     ]),
   });
 
+  arg1 = [Cl.uint(0)];
+  res = simnet.callReadOnlyFn('augur-markets', 'get-share-amounts', arg1, wallet1);
+  expect(res.result).toBeTuple({
+    amounts: Cl.list([Cl.uint(1000000), Cl.uint(1000000)]),
+  });
+
   arg1 = [
     Cl.tuple({ id: Cl.uint(0), q: Cl.uint(1000000), qb: Cl.uint(2500) }),
     Cl.tuple({ id: Cl.uint(1), q: Cl.uint(1000000), qb: Cl.uint(2500) }),
@@ -232,6 +238,12 @@ it('event', () => {
 
   res = simnet.callReadOnlyFn('augur-markets', 'get-share-costs', [Cl.uint(0)], wallet1);
   expect(res.result).toBeList([Cl.uint(568980), Cl.uint(431019)]);
+
+  arg1 = [Cl.uint(0)];
+  res = simnet.callReadOnlyFn('augur-markets', 'get-share-amounts', arg1, wallet1);
+  expect(res.result).toBeTuple({
+    amounts: Cl.list([Cl.uint(100000000), Cl.uint(1000000)]),
+  });
 
   arg1 = [Cl.principal(wallet1)];
   res = simnet.callReadOnlyFn('augur-markets', 'get-balance', arg1, wallet1);
@@ -893,6 +905,12 @@ it('prices', () => {
         desc: Cl.stringAscii('Dont care'), 'share-amount': Cl.uint(3891000000),
       })),
     ]),
+  });
+
+  arg1 = [Cl.uint(0)];
+  res = simnet.callReadOnlyFn('augur-markets', 'get-share-amounts', arg1, wallet1);
+  expect(res.result).toBeTuple({
+    amounts: Cl.list([Cl.uint(0), Cl.uint(0), Cl.uint(0), Cl.uint(3891000000)]),
   });
 
   arg1 = [
