@@ -16,6 +16,193 @@ it('ensures simnet is well initialised', () => {
   expect(simnet.blockHeight).toBeDefined();
 });
 
+it('allowed contracts', () => {
+  let res;
+
+  res = simnet.callPublicFn(
+    'augur-token',
+    'transfer',
+    [Cl.uint(1000000), Cl.principal(wallet1), Cl.principal(wallet2), Cl.none()],
+    wallet1
+  );
+  expect(res.result).toBeErr(Cl.uint(802));
+
+  res = simnet.callPublicFn(
+    'augur-token',
+    'transfer',
+    [Cl.uint(1000000), Cl.principal(wallet2), Cl.principal(wallet1), Cl.none()],
+    wallet1
+  );
+  expect(res.result).toBeErr(Cl.uint(802));
+
+  res = simnet.callPublicFn(
+    'augur-token',
+    'transfer',
+    [Cl.uint(1000000), Cl.principal(wallet1), Cl.principal(wallet2), Cl.none()],
+    deployer
+  );
+  expect(res.result).toBeErr(Cl.uint(802));
+
+  res = simnet.callPublicFn(
+    'augur-token',
+    'transfer',
+    [Cl.uint(1000000), Cl.principal(deployer), Cl.principal(wallet2), Cl.none()],
+    deployer
+  );
+  expect(res.result).toBeErr(Cl.uint(1));
+
+  res = simnet.callPublicFn(
+    'augur-token',
+    'mint',
+    [Cl.uint(1000000), Cl.principal(wallet1), Cl.none()],
+    wallet1
+  );
+  expect(res.result).toBeErr(Cl.uint(801));
+
+  res = simnet.callPublicFn(
+    'augur-token',
+    'mint',
+    [Cl.uint(1000000), Cl.principal(wallet2), Cl.none()],
+    wallet1
+  );
+  expect(res.result).toBeErr(Cl.uint(801));
+
+  res = simnet.callPublicFn(
+    'augur-token',
+    'mint',
+    [Cl.uint(1000000), Cl.principal(deployer), Cl.none()],
+    deployer
+  );
+  expect(res.result).toBeOk(Cl.bool(true));
+
+  res = simnet.callPublicFn(
+    'augur-token',
+    'mint',
+    [Cl.uint(1000000), Cl.principal(wallet2), Cl.none()],
+    deployer
+  );
+  expect(res.result).toBeOk(Cl.bool(true));
+
+  res = simnet.callReadOnlyFn('augur-token', 'get-total-supply', [], wallet1);
+  expect(res.result).toBeOk(Cl.uint(2000000));
+
+  res = simnet.callReadOnlyFn(
+    'augur-token', 'get-balance', [Cl.principal(deployer)], wallet1
+  );
+  expect(res.result).toBeOk(Cl.uint(1000000));
+
+  res = simnet.callReadOnlyFn(
+    'augur-token', 'get-balance', [Cl.principal(wallet1)], wallet1
+  );
+  expect(res.result).toBeOk(Cl.uint(0));
+
+  res = simnet.callReadOnlyFn(
+    'augur-token', 'get-balance', [Cl.principal(wallet2)], wallet1
+  );
+  expect(res.result).toBeOk(Cl.uint(1000000));
+
+  res = simnet.callPublicFn(
+    'augur-token',
+    'transfer',
+    [Cl.uint(1000000), Cl.principal(wallet1), Cl.principal(wallet2), Cl.none()],
+    wallet2
+  );
+  expect(res.result).toBeErr(Cl.uint(802));
+
+  res = simnet.callPublicFn(
+    'augur-token',
+    'transfer',
+    [Cl.uint(1000000), Cl.principal(wallet2), Cl.principal(wallet1), Cl.none()],
+    wallet2
+  );
+  expect(res.result).toBeErr(Cl.uint(802));
+
+  res = simnet.callPublicFn(
+    'augur-token',
+    'transfer',
+    [Cl.uint(1000000), Cl.principal(wallet1), Cl.principal(wallet2), Cl.none()],
+    deployer
+  );
+  expect(res.result).toBeErr(Cl.uint(802));
+
+  res = simnet.callPublicFn(
+    'augur-token',
+    'transfer',
+    [Cl.uint(100000), Cl.principal(wallet2), Cl.principal(deployer), Cl.none()],
+    deployer
+  );
+  expect(res.result).toBeErr(Cl.uint(802));
+
+  res = simnet.callPublicFn(
+    'augur-token',
+    'transfer',
+    [
+      Cl.uint(100000),
+      Cl.principal(deployer),
+      Cl.principal(wallet1),
+      Cl.some(Cl.bufferFromAscii('deployer transfers to wallet1.'))
+    ],
+    deployer
+  );
+  expect(res.result).toBeOk(Cl.bool(true));
+
+  res = simnet.callPublicFn(
+    'augur-token',
+    'add-allowed-contract',
+    [Cl.principal(deployer + '.augur-store')],
+    wallet1
+  );
+  expect(res.result).toBeErr(Cl.uint(801));
+
+  res = simnet.callPublicFn(
+    'augur-token',
+    'add-allowed-contract',
+    [Cl.principal(deployer + '.augur-store')],
+    deployer
+  );
+  expect(res.result).toBeOk(Cl.bool(true));
+
+  res = simnet.callPublicFn(
+    'augur-token',
+    'delete-allowed-contract',
+    [Cl.principal(deployer + '.augur-store')],
+    wallet1
+  );
+  expect(res.result).toBeErr(Cl.uint(801));
+
+  res = simnet.callPublicFn(
+    'augur-token',
+    'delete-allowed-contract',
+    [Cl.principal(deployer + '.augur-store')],
+    deployer
+  );
+  expect(res.result).toBeOk(Cl.bool(true));
+
+  res = simnet.callPublicFn(
+    'augur-token',
+    'delete-allowed-contract',
+    [Cl.principal(deployer + '.augur-store')],
+    deployer
+  );
+  expect(res.result).toBeOk(Cl.bool(true));
+
+  res = simnet.callPublicFn(
+    'augur-token',
+    'add-allowed-contract',
+    [Cl.principal(deployer + '.augur-store')],
+    deployer
+  );
+  expect(res.result).toBeOk(Cl.bool(true));
+
+  res = simnet.callPublicFn(
+    'augur-token',
+    'add-allowed-contract',
+    [Cl.principal(deployer + '.augur-store')],
+    deployer
+  );
+  expect(res.result).toBeOk(Cl.bool(true));
+});
+
 it('transfers', () => {
   let res, arg1;
 
@@ -33,7 +220,15 @@ it('transfers', () => {
     [Cl.uint(1000000), Cl.principal(wallet1), Cl.principal(wallet2), Cl.none()],
     deployer
   );
-  expect(res.result).toBeErr(Cl.uint(1));
+  expect(res.result).toBeErr(Cl.uint(802));
+
+  res = simnet.callPublicFn(
+    'augur-token',
+    'transfer',
+    [Cl.uint(1000000), Cl.principal(wallet1), Cl.principal(wallet2), Cl.none()],
+    deployer
+  );
+  expect(res.result).toBeErr(Cl.uint(802));
 
   res = simnet.callPublicFn(
     'augur-token',
@@ -120,7 +315,7 @@ it('transfers', () => {
     [Cl.uint(100000), Cl.principal(wallet2), Cl.principal(deployer), Cl.none()],
     deployer
   );
-  expect(res.result).toBeOk(Cl.bool(true));
+  expect(res.result).toBeErr(Cl.uint(802));
 
   res = simnet.callPublicFn(
     'augur-token',
@@ -128,11 +323,11 @@ it('transfers', () => {
     [Cl.uint(100000), Cl.principal(wallet2), Cl.principal(wallet1), Cl.none()],
     deployer
   );
-  expect(res.result).toBeOk(Cl.bool(true));
+  expect(res.result).toBeErr(Cl.uint(802));
 
   res = simnet.callPublicFn(
     'augur-token',
-    'set-markets-contract',
+    'add-allowed-contract',
     [Cl.principal(deployer + '.augur-markets')],
     wallet1
   );
@@ -140,7 +335,7 @@ it('transfers', () => {
 
   res = simnet.callPublicFn(
     'augur-token',
-    'set-markets-contract',
+    'add-allowed-contract',
     [Cl.principal(deployer + '.augur-markets')],
     deployer
   );
@@ -148,7 +343,7 @@ it('transfers', () => {
 
   res = simnet.callPublicFn(
     'augur-token',
-    'set-store-contract',
+    'add-allowed-contract',
     [Cl.principal(deployer + '.augur-store')],
     wallet1
   );
@@ -156,7 +351,7 @@ it('transfers', () => {
 
   res = simnet.callPublicFn(
     'augur-token',
-    'set-store-contract',
+    'add-allowed-contract',
     [Cl.principal(deployer + '.augur-store')],
     deployer
   );
@@ -192,17 +387,17 @@ it('transfers', () => {
   res = simnet.callReadOnlyFn(
     'augur-token', 'get-balance', [Cl.principal(deployer)], wallet3
   );
-  expect(res.result).toBeOk(Cl.uint(900000));
+  expect(res.result).toBeOk(Cl.uint(800000));
 
   res = simnet.callReadOnlyFn(
     'augur-token', 'get-balance', [Cl.principal(wallet1)], wallet3
   );
-  expect(res.result).toBeOk(Cl.uint(300000));
+  expect(res.result).toBeOk(Cl.uint(200000));
 
   res = simnet.callReadOnlyFn(
     'augur-token', 'get-balance', [Cl.principal(wallet2)], wallet3
   );
-  expect(res.result).toBeOk(Cl.uint(800000));
+  expect(res.result).toBeOk(Cl.uint(1000000));
 
   res = simnet.callReadOnlyFn(
     'augur-token', 'get-balance', [Cl.principal(wallet3)], wallet3
@@ -260,12 +455,12 @@ it('transfers', () => {
   res = simnet.callReadOnlyFn(
     'augur-token', 'get-balance', [Cl.principal(deployer)], deployer
   );
-  expect(res.result).toBeOk(Cl.uint(1000000000800000));
+  expect(res.result).toBeOk(Cl.uint(1000000000700000));
 
   res = simnet.callReadOnlyFn(
     'augur-token', 'get-balance', [Cl.principal(wallet2)], deployer
   );
-  expect(res.result).toBeOk(Cl.uint(1800000));
+  expect(res.result).toBeOk(Cl.uint(2000000));
 
   arg1 = Cl.list([
     Cl.tuple({
@@ -293,7 +488,7 @@ it('transfers', () => {
   res = simnet.callReadOnlyFn(
     'augur-token', 'get-balance', [Cl.principal(deployer)], wallet2
   );
-  expect(res.result).toBeOk(Cl.uint(1000000000500000));
+  expect(res.result).toBeOk(Cl.uint(1000000000400000));
 
   arg1 = [
     Cl.uint(100000),

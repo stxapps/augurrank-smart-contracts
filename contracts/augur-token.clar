@@ -6,17 +6,15 @@
 (define-constant ERR-ONLY-MARKETS (err u802))
 
 (define-constant contract-owner tx-sender)
-(define-data-var markets-contract principal tx-sender)
-(define-data-var store-contract principal tx-sender)
 (define-data-var token-uri (optional (string-utf8 256)) none)
+(define-map allowed-contracts principal bool)
 
 (define-public (transfer (amount uint) (sender principal) (recipient principal) (memo (optional (buff 34))))
   (begin
     (asserts!
       (or
         (and (is-eq tx-sender sender) (is-eq tx-sender contract-owner))
-        (is-eq contract-caller (var-get markets-contract))
-        (is-eq contract-caller (var-get store-contract))
+        (default-to false (map-get? allowed-contracts contract-caller))
       )
       ERR-ONLY-MARKETS
     )
@@ -50,22 +48,6 @@
   (ok (var-get token-uri))
 )
 
-(define-public (set-markets-contract (new-contract principal))
-  (begin
-    (asserts! (is-eq tx-sender contract-owner) ERR-UNAUTHORIZED)
-    (var-set markets-contract new-contract)
-    (ok true)
-  )
-)
-
-(define-public (set-store-contract (new-contract principal))
-  (begin
-    (asserts! (is-eq tx-sender contract-owner) ERR-UNAUTHORIZED)
-    (var-set store-contract new-contract)
-    (ok true)
-  )
-)
-
 (define-public (set-token-uri (value (string-utf8 256)))
   (begin
     (asserts! (is-eq tx-sender contract-owner) ERR-UNAUTHORIZED)
@@ -77,6 +59,22 @@
         token-class: "ft"
       }
     }))
+  )
+)
+
+(define-public (add-allowed-contract (value principal))
+  (begin
+    (asserts! (is-eq tx-sender contract-owner) ERR-UNAUTHORIZED)
+    (map-set allowed-contracts value true)
+    (ok true)
+  )
+)
+
+(define-public (delete-allowed-contract (value principal))
+  (begin
+    (asserts! (is-eq tx-sender contract-owner) ERR-UNAUTHORIZED)
+    (map-delete allowed-contracts value)
+    (ok true)
   )
 )
 

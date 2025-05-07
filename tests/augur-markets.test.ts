@@ -101,7 +101,7 @@ it('event', () => {
 
   res = simnet.callPublicFn(
     'augur-token',
-    'set-markets-contract',
+    'add-allowed-contract',
     [Cl.principal(deployer + '.augur-markets')],
     deployer
   );
@@ -344,7 +344,23 @@ const init = () => {
 
   res = simnet.callPublicFn(
     'augur-token',
-    'set-markets-contract',
+    'add-allowed-contract',
+    [Cl.principal(deployer + '.augur-markets')],
+    deployer
+  );
+  expect(res.result).toBeOk(Cl.bool(true));
+
+  res = simnet.callPublicFn(
+    'augur-token',
+    'delete-allowed-contract',
+    [Cl.principal(deployer + '.augur-markets')],
+    deployer
+  );
+  expect(res.result).toBeOk(Cl.bool(true));
+
+  res = simnet.callPublicFn(
+    'augur-token',
+    'add-allowed-contract',
     [Cl.principal(deployer + '.augur-markets')],
     deployer
   );
