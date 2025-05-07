@@ -9,7 +9,7 @@ plan:
     - id: 0
       transactions:
         - contract-publish:
-            contract-name: augur-token-t1
+            contract-name: augur-token-t2
             expected-sender: ST1ARJX5XDEYWNDX8JEKGTZNZ0YJHQAYDWRSAB44M
             cost: 3477
             path: contracts/augur-token.clar

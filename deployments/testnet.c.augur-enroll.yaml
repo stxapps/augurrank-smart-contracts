@@ -9,7 +9,7 @@ plan:
     - id: 0
       transactions:
         - contract-publish:
-            contract-name: augur-enroll-t1
+            contract-name: augur-enroll-t2
             expected-sender: ST1ARJX5XDEYWNDX8JEKGTZNZ0YJHQAYDWRSAB44M
             cost: 1046
             path: contracts/augur-enroll.clar

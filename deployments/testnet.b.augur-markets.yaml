@@ -9,9 +9,9 @@ plan:
     - id: 0
       transactions:
         - contract-publish:
-            contract-name: augur-markets-t1
+            contract-name: augur-markets-t2
             expected-sender: ST1ARJX5XDEYWNDX8JEKGTZNZ0YJHQAYDWRSAB44M
-            cost: 35544
+            cost: 37000
             path: contracts/augur-markets.clar
             anchor-block-only: true
             clarity-version: 3
