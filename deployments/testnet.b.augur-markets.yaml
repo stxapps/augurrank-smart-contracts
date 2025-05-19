@@ -1,0 +1,18 @@
+---
+id: 0
+name: Testnet deployment
+network: testnet
+stacks-node: "https://api.testnet.hiro.so"
+bitcoin-node: "http://blockstack:blockstacksystem@bitcoind.testnet.stacks.co:18332"
+plan:
+  batches:
+    - id: 0
+      transactions:
+        - contract-publish:
+            contract-name: augur-markets-t2
+            expected-sender: ST1ARJX5XDEYWNDX8JEKGTZNZ0YJHQAYDWRSAB44M
+            cost: 37000
+            path: contracts/augur-markets.clar
+            anchor-block-only: true
+            clarity-version: 3
+      epoch: "3.1"

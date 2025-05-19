@@ -497,6 +497,26 @@
   )
 )
 
+;; Get outcome share amounts
+(define-read-only (get-share-amount (outcome { desc: (string-ascii 128), share-amount: uint }))
+  (get share-amount outcome)
+)
+(define-read-only (get-share-amounts (event-id uint))
+  (let
+    (
+      (r-outcomes (map
+        get-outcome
+        (list event-id event-id event-id event-id event-id event-id event-id event-id event-id event-id)
+        (list u0 u1 u2 u3 u4 u5 u6 u7 u8 u9)
+      ))
+      (f-outcomes (filter is-some-outcome r-outcomes))
+      (u-outcomes (map unwrap-panic-outcome f-outcomes))
+      (amounts (map get-share-amount u-outcomes))
+    )
+    { amounts: amounts }
+  )
+)
+
 ;; Get current share cost for each event outcome
 (define-read-only (get-share-costs (event-id uint))
   (let
@@ -536,7 +556,7 @@
     (map-set users { event-id: event-id, outcome-id: outcome-id, user-id: tx-sender }
       (merge user { share-amount: (+ (get share-amount user) amount) })
     )
-    (ok { cost: cost })
+    (ok { amount: amount, cost: cost })
   )
 )
 
@@ -554,7 +574,7 @@
     (map-set users { event-id: event-id, outcome-id: outcome-id, user-id: tx-sender }
       (merge user { share-amount: (- (get share-amount user) amount) })
     )
-    (ok { cost: cost })
+    (ok { amount: amount, cost: cost })
   )
 )
 
